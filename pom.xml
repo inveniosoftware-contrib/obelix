@@ -34,7 +34,7 @@
             </plugins>
         </pluginManagement>
     </build>
-    
+
     <dependencies>
         <dependency>
             <groupId>com.sparkjava</groupId>
