@@ -12,24 +12,13 @@
     <name>obelix</name>
     <url>http://maven.apache.org</url>
 
-    <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
-
     <build>
-        <finalName>Obelix</finalName>
-
-        <resources>
-            <resource>
-                <directory>src/main/resources</directory>
-            </resource>
-        </resources>
-
         <pluginManagement>
             <plugins>
                 <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
-                    <version>3.2</version>
+                    <version>3.1</version>
                     <configuration>
                         <source>1.8</source>
                         <target>1.8</target>
@@ -39,7 +28,12 @@
         </pluginManagement>
     </build>
 
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
     <dependencies>
+
         <dependency>
             <groupId>com.sparkjava</groupId>
             <artifactId>spark-core</artifactId>
@@ -54,23 +48,11 @@
         </dependency>
 
         <dependency>
-            <groupId>org.json</groupId>
-            <artifactId>json</artifactId>
-            <version>20140107</version>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-nop</artifactId>
+            <version>1.7.7</version>
         </dependency>
 
-        <dependency>
-            <groupId>com.google.http-client</groupId>
-            <artifactId>google-http-client</artifactId>
-            <version>1.19.0</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.google.http-client</groupId>
-            <artifactId>google-http-client-jackson2</artifactId>
-            <version>1.19.0</version>
-        </dependency>
-        
     </dependencies>
 
 </project>
