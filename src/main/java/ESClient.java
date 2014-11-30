@@ -1,99 +1,85 @@
-import org.elasticsearch.action.bulk.BulkRequestBuilder;
-import org.elasticsearch.action.bulk.BulkResponse;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.action.search.SearchType;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.client.transport.TransportClient;
-import org.elasticsearch.common.settings.ImmutableSettings;
-import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.InetSocketTransportAddress;
-import org.elasticsearch.common.unit.TimeValue;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.index.query.FilterBuilder;
-import org.elasticsearch.index.query.QueryBuilder;
+import io.searchbox.client.JestClient;
+import io.searchbox.client.JestClientFactory;
+import io.searchbox.client.config.HttpClientConfig;
+import io.searchbox.core.Search;
+import io.searchbox.core.SearchResult;
+import io.searchbox.params.Parameters;
 
-import java.io.IOException;
 import java.util.List;
-import java.util.Map;
-
-import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 
 public class ESClient {
-    private Client client;
-    private boolean readOnly;
 
-    public ESClient(String host, int port) {
-        this("elastcisearch", host, port, false);
-    }
 
-    public ESClient(String clusterName, String host, int port, boolean readOnly) {
-        this.readOnly = readOnly;
 
-        Settings settings = ImmutableSettings.settingsBuilder()
-                .put("cluster.name", clusterName).build();
 
-        this.client = new TransportClient(settings)
-                .addTransportAddress(new InetSocketTransportAddress(host, port));
+    public static void main(String...args) {
 
-    }
+        JestClientFactory factory = new JestClientFactory();
+        factory.setHttpClientConfig(new HttpClientConfig
+                .Builder("http://localhost:9200")
+                .multiThreaded(true)
+                .build());
+        JestClient client = factory.getObject();
 
-    public Client getClient() {
-        return this.client;
-    }
+        String query = "{\"query\":{\"match_all\":{}}}";
 
-    public SearchResponse search(QueryBuilder qb, FilterBuilder filter) {
-        return getClient().prepareSearch()
-                .setSearchType(SearchType.SCAN)
-                .setScroll(new TimeValue(60000))
-                .setQuery(qb)
-                .setPostFilter(filter)
-                .setSize(500).execute().actionGet();
-    }
+        Search search = new Search.Builder(query)
+                // multiple index or types can be added.
+                .addIndex("cds-stats")
+                .setParameter(Parameters.SIZE, 2)
+                .setParameter(Parameters.SCROLL, "5m")
+                .build();
 
-    public SearchResponse search(QueryBuilder qb) {
-        return getClient().prepareSearch()
-                .setSearchType(SearchType.SCAN)
-                .setScroll(new TimeValue(60000))
-                .setQuery(qb)
-                .setSize(500).execute().actionGet();
-    }
+        String scrollId = "";
 
-    public void bulkIndex(String index, List<Map<String, String>> map) throws Exception {
+        try {
+            SearchResult result = client.execute(search);
+            List<SearchResult.Hit<ESLogEntry, Void>> hits = result.getHits(ESLogEntry.class);
 
-        if (this.readOnly) {
-            throw new Exception("This ES cluster is in read only mode");
-        }
+            scrollId = result.getJsonObject().get("_scroll_id").getAsString();
 
-        BulkRequestBuilder bulkRequest = getClient().prepareBulk();
-
-        for (Map<String, String> document : map) {
-            try {
-                bulkRequest.add(getClient().prepareIndex(index, "download-log")
-                        .setSource(jsonfyMap(document)));
-            } catch (IOException e) {
-                e.printStackTrace();
+            for(SearchResult.Hit<ESLogEntry, Void> hit : hits) {
+                System.out.println(hit.source.id_bibdoc);
             }
-        }
 
-        if (map.size() > 0) {
-            BulkResponse bulkResponse = bulkRequest.execute().actionGet();
-            if (bulkResponse.hasFailures()) {
-                System.out.println("error..");
+            System.out.println(scrollId);
+            System.out.println(result.getTotal());
+
+            //SearchScroll searchScroll = new SearchScroll.Builder(scrollId, "1m").build();
+            //System.out.println(searchScroll.getURI());
+
+            search = new Search.Builder(query)
+                    // multiple index or types can be added.
+                    .addIndex("cds-stats")
+                    .setParameter(Parameters.SIZE, 2)
+                    .setParameter(Parameters.SCROLL, "5m")
+                    .setParameter(Parameters.SCROLL_ID, scrollId)
+                    .build();
+
+            result = client.execute(search);
+            List<SearchResult.Hit<ESLogEntry, Void>> nhits = result.getHits(ESLogEntry.class);
+
+            scrollId = result.getJsonObject().get("_scroll_id").getAsString();
+
+            System.out.println(scrollId);
+
+            for(SearchResult.Hit<ESLogEntry, Void> hit : nhits) {
+                System.out.println(hit.source.id_bibdoc);
             }
-        }
-    }
 
-    private XContentBuilder jsonfyMap(Map<String, String> map) throws IOException {
-
-        XContentBuilder json = jsonBuilder().startObject();
-
-        for (String key : map.keySet()) {
-            json.field(key, map.get(key));
+        } catch (Exception e) {
+            e.printStackTrace();
         }
 
-        json.endObject();
-        return json;
+
+
 
     }
+
+
+
+
+
+
 
 }
