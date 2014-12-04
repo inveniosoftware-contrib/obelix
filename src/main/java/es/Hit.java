@@ -2,6 +2,7 @@ package es;
 
 
 import com.google.api.client.util.Key;
+import com.google.gson.Gson;
 
 public class Hit {
 
@@ -32,4 +33,17 @@ public class Hit {
     public String getIndex() {
         return index;
     }
+
+
+    public String toJson() {
+        Gson gson = new Gson();
+        return gson.toJson(this);
+    }
+
+    public String sourceToJson() {
+        Gson gson = new Gson();
+        return gson.toJson(this.getSource());
+    }
+
+
 }

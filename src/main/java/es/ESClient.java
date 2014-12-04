@@ -36,18 +36,13 @@ public class ESClient {
                 });
     }
 
-
-    private Result fetchResult() throws IOException {
-        return fetchResult(null);
-    }
-
-    private Result fetchResult(String scrollID) throws IOException {
-        ServerUrl url = new ServerUrl(this.hostname + "/_search?size=1000&scroll=1m");
+    private Result fetchResult(String size, String scrollID) throws IOException {
+        ServerUrl url = new ServerUrl(this.hostname + "/_search?size=" + size + "&scroll=1m");
         HttpRequest request;
         String sortDescending;
 
         if (scrollID != null) {
-            url = new ServerUrl(this.hostname + "/_search/scroll/"+scrollID+"?scroll=1m&size=1000");
+            url = new ServerUrl(this.hostname + "/_search/scroll/" + scrollID + "?scroll=1m&size=" + size);
             request = getRequestFactory().buildGetRequest(url);
 
         } else {
@@ -69,32 +64,32 @@ public class ESClient {
         return request.execute().parseAs(Result.class);
     }
 
-    public List<Hit> fetchLatest(int limit) throws IOException {
-        System.out.println("Fetching last " + limit + " entries");
+    public List<Hit> fetchLatest(String size, int limit) throws IOException {
+        //System.out.println("Fetching last " + limit + " entries");
         List<Hit> finalResult = new ArrayList<>();
 
         Queue<Hit> queue = new LinkedList<>();
-        Result result = fetchResult();
+
+        Result result = fetchResult(size, null);
         queue.addAll(result.getResult());
 
         String scrollID = result.scrollID;
 
         while (!queue.isEmpty()) {
-            Hit hit = queue.remove();
-            finalResult.add(hit);
+            finalResult.add(queue.remove());
 
             if (finalResult.size() >= limit) {
                 return finalResult;
             }
 
             if (queue.isEmpty() && scrollID != null) {
-                Result next = fetchResult(scrollID);
+                Result next = fetchResult(size, scrollID);
                 queue.addAll(next.getResult());
                 scrollID = next.scrollID;
             }
         }
 
-        System.out.println("Done fetching last " + finalResult.size() + " entries");
+        //System.out.println("Done fetching last " + finalResult.size() + " entries");
         return finalResult;
     }
 
@@ -103,7 +98,7 @@ public class ESClient {
         List<Hit> finalResult = new ArrayList<>();
 
         Queue<Hit> queue = new LinkedList<>();
-        Result result = fetchResult();
+        Result result = fetchResult("100", null);
         queue.addAll(result.getResult());
         String scrollID = result.scrollID;
 
@@ -116,13 +111,13 @@ public class ESClient {
             }
 
             if (queue.isEmpty() && scrollID != null) {
-                Result next = fetchResult(scrollID);
+                Result next = fetchResult("100", scrollID);
                 queue.addAll(next.getResult());
                 scrollID = next.scrollID;
             }
         }
 
-        System.out.println("Done fetching all entries ("+ finalResult.size()+")) since key: " + key + " appeared");
+        System.out.println("Done fetching all entries (" + finalResult.size() + ")) since key: " + key + " appeared");
         return null;
 
     }

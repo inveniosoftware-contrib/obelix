@@ -23,6 +23,9 @@ public class Source {
     @Key("file_format")
     private String fileFormat;
 
+    @Key("timestamp")
+    private String timestamp;
+
     public String getFileVersion() {
         return fileVersion;
     }
@@ -48,7 +51,7 @@ public class Source {
     }
 
 
-    //@Key("timestamp")
-    //String timestamp;
-
+    public String getTimestamp() {
+        return timestamp;
+    }
 }
