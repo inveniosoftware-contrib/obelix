@@ -2,7 +2,9 @@ import org.neo4j.graphdb.*;
 import org.neo4j.tooling.GlobalGraphOperations;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static spark.Spark.get;
 
@@ -30,6 +32,8 @@ public class WebInterface implements Runnable {
                 nodes.add(userId);
             }
 
+            System.out.println("Total users: " + nodes.size());
+
             return nodes;
 
         }
@@ -52,9 +56,33 @@ public class WebInterface implements Runnable {
                 nodes.add(userId);
             }
 
+            System.out.println("Total records: " + nodes.size());
+
             return nodes;
         }
     }
+
+    public Map<String, String> getAllRelationships() {
+
+        Label recordLabel = DynamicLabel.label("Record");
+        Iterable<Relationship> users;
+
+        try (Transaction tx = graphDb.beginTx()) {
+            users = GlobalGraphOperations.at(graphDb).getAllRelationships();
+            tx.success();
+
+            Map<String, String> relations = new HashMap<>();
+
+            for(Relationship node : users) {
+                relations.put(
+                        (String)node.getStartNode().getProperty("id_user"),
+                        (String)node.getEndNode().getProperty("id_bibrec"));
+            }
+
+            return relations;
+        }
+    }
+
 
     public void run() {
 
@@ -70,6 +98,10 @@ public class WebInterface implements Runnable {
 
         get("/records", "application/json", (request, response) -> {
             return this.getAllRecords();
+        }, new JsonTransformer());
+
+        get("/relations", "application/json", (request, response) -> {
+            return this.getAllRelationships();
         }, new JsonTransformer());
 
     }

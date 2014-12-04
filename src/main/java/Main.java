@@ -3,7 +3,6 @@ import org.neo4j.graphdb.factory.GraphDatabaseFactory;
 
 public class Main {
 
-
     private static void registerShutdownHook( final GraphDatabaseService graphDb )
     {
         // Registers a shutdown hook for the Neo4j instance so that it
@@ -28,7 +27,7 @@ public class Main {
 
         registerShutdownHook(graphDb);
 
-        (new Thread(new RedisFeeder())).start();
+        //(new Thread(new RedisFeeder())).start();
         (new Thread(new NeoFeeder(graphDb))).start();
         (new Thread(new WebInterface(graphDb))).start();
 

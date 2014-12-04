@@ -75,21 +75,20 @@ public class NeoFeeder implements Runnable {
 
                     if (!registed) {
                         user.createRelationshipTo(record, RelTypes.READ);
+                        imported += 1;
                     }
 
                     // Database operations go here
                     tx.success();
 
-                    imported += 1;
 
                     if (imported % 100 == 0) {
                         System.out.println("Feeded " + imported + " nodes to neo4j");
                     }
                 }
 
-
                 try {
-                    Thread.sleep(100);
+                    Thread.sleep(1);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
