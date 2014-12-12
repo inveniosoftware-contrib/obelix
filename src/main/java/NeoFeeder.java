@@ -1,6 +1,8 @@
-import com.google.gson.Gson;
-import es.Source;
-import org.neo4j.graphdb.*;
+import events.EventFactory;
+import events.NeoEvent;
+import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphdb.Transaction;
+import org.neo4j.graphdb.TransactionFailureException;
 import redis.clients.jedis.Jedis;
 
 public class NeoFeeder implements Runnable {
@@ -11,93 +13,47 @@ public class NeoFeeder implements Runnable {
         this.graphDb = graphDb;
     }
 
-    private static enum RelTypes implements RelationshipType {
-        READ
-    }
-
     public void run() {
 
         Jedis jedis = new Jedis("localhost", 6379);
 
-        Label userLabel = DynamicLabel.label("User");
-        Label recordLabel = DynamicLabel.label("Record");
-
-        ResourceIterator<Node> userList;
-        ResourceIterator<Node> recordList;
-
-        Gson gson;
-        Source source;
-        Node user;
-        Node record;
-
-        int imported = 0;
+        int count = 0;
 
         while (true) {
 
             String result = jedis.rpop("logentries");
 
             if (result != null) {
-                gson = new Gson();
-                source = gson.fromJson(result, Source.class);
+                NeoEvent event = EventFactory.build(graphDb, result);
 
-                try (Transaction tx = graphDb.beginTx()) {
+                if (event != null) {
 
-                    userList = graphDb.findNodesByLabelAndProperty(userLabel, "id_user", source.getUserID()).iterator();
-
-                    if (userList.hasNext()) {
-                        user = userList.next();
-                    } else {
-                        user = graphDb.createNode();
-                        user.addLabel(userLabel);
-                        user.setProperty("id_user", source.getUserID());
-                        user.setProperty("ip_user", source.getClientHost());
+                    try (Transaction tx = graphDb.beginTx()) {
+                        event.execute(graphDb);
+                        tx.success();
+                    } catch (TransactionFailureException e) {
+                        System.err.println("TransactionFailureException, need to restart");
+                        jedis.lpush("logentries", result);
+                        //graphDb.shutdown();
+                        System.exit(0);
                     }
 
-                    recordList = graphDb.findNodesByLabelAndProperty(recordLabel, "id_bibrec", source.getBibrecID()).iterator();
+                    count += 1;
 
-                    if (recordList.hasNext()) {
-                        record = recordList.next();
-                    } else {
-                        record = graphDb.createNode();
-                        record.addLabel(recordLabel);
-                        record.setProperty("id_bibdoc", source.getBibdocID());
-                        record.setProperty("id_bibrec", source.getBibrecID());
-                        record.setProperty("file_format", source.getFileFormat());
-                    }
+                    if (count % 1000 == 0) {
+                        System.out.println("Imported " + count + " entries from redis");
 
-                    boolean registed = false;
-
-                    for (Relationship relationship : user.getRelationships()) {
-                        if (relationship.getEndNode().getProperty("id_bibrec") == source.getBibrecID()) {
-                            registed = true;
+                        try {
+                            Thread.sleep(10);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
                         }
-                    }
 
-                    if (!registed) {
-                        user.createRelationshipTo(record, RelTypes.READ);
-                        imported += 1;
-                    }
-
-                    // Database operations go here
-                    tx.success();
-
-
-                    if (imported % 100 == 0) {
-                        System.out.println("Feeded " + imported + " nodes to neo4j");
                     }
                 }
-
-                try {
-                    Thread.sleep(1);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-
             }
 
         }
-
     }
-
 
 }

@@ -1,40 +1,27 @@
-package es;
-
 import com.google.api.client.util.Key;
 
 public class Source {
 
-
-    @Key("file_version")
-    private String fileVersion;
-
     @Key("id_bibdoc")
-    private String bibdocID;
+    private int bibdocID;
 
     @Key("id_user")
-    private String userID;
+    private int userID;
 
     @Key("client_host")
     private String clientHost;
 
     @Key("id_bibrec")
-    private String bibrecID;
-
-    @Key("file_format")
-    private String fileFormat;
+    public int bibrecID;
 
     @Key("timestamp")
     private String timestamp;
 
-    public String getFileVersion() {
-        return fileVersion;
-    }
-
-    public String getBibdocID() {
+    public int getBibdocID() {
         return bibdocID;
     }
 
-    public String getUserID() {
+    public int getUserID() {
         return userID;
     }
 
@@ -42,14 +29,9 @@ public class Source {
         return clientHost;
     }
 
-    public String getBibrecID() {
+    public int getBibrecID() {
         return bibrecID;
     }
-
-    public String getFileFormat() {
-        return fileFormat;
-    }
-
 
     public String getTimestamp() {
         return timestamp;
