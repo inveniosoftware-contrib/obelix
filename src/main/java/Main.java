@@ -20,7 +20,6 @@ public class Main {
 
     public static void main(String... args) {
 
-
         String neoLocation = "/Users/frecar/code/frecar/obelix/graph.db";
         GraphDatabaseService graphDb = new GraphDatabaseFactory()
                 .newEmbeddedDatabaseBuilder(neoLocation)
