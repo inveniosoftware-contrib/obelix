@@ -33,9 +33,9 @@ public class EventFactory {
             case EVENTS_DOWNLOADS_LOG:
                 event = new Gson().fromJson(object.get("source"), Download.class);
                 break;
-            case EVENTS_PAGEVIEW:
+            /*case EVENTS_PAGEVIEW:
                 event = new Gson().fromJson(object.get("source"), PageView.class);
-                break;
+                break;*/
         }
 
         if(event != null) {
@@ -43,7 +43,7 @@ public class EventFactory {
                 return event;
             }
             else {
-                System.out.println(event + " did not validate..");
+                System.out.println(event + " did not validate");
                 System.out.println(event.getUser());
             }
         }

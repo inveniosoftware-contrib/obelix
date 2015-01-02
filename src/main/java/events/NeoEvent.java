@@ -5,10 +5,11 @@ import org.neo4j.graphdb.GraphDatabaseService;
 
 public interface NeoEvent {
 
-    public Long getUser();
-    public String print();
+    public String getUser();
+    public String getItem();
+    public String getTimestamp();
 
     public boolean validate();
-    public void execute(GraphDatabaseService graphDb);
+    public void execute(GraphDatabaseService graphDb, int maxRelationships);
 
 }

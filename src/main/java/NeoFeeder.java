@@ -1,27 +1,35 @@
 import events.EventFactory;
 import events.NeoEvent;
+import org.neo4j.cypher.EntityNotFoundException;
 import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphdb.NotFoundException;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.TransactionFailureException;
-import redis.clients.jedis.Jedis;
+import org.neo4j.kernel.DeadlockDetectedException;
 
 public class NeoFeeder implements Runnable {
 
     GraphDatabaseService graphDb;
+    RedisQueueManager redisQueueManager;
+    int maxRelationships;
+    int workerID;
 
-    public NeoFeeder(GraphDatabaseService graphDb) {
+    public NeoFeeder(GraphDatabaseService graphDb, int maxRelationships, RedisQueueManager redisQueueManager, int workerID) {
+        this.redisQueueManager = redisQueueManager;
+        this.maxRelationships = maxRelationships;
         this.graphDb = graphDb;
+        this.workerID = workerID;
     }
 
     public void run() {
 
-        Jedis jedis = new Jedis("localhost", 6379);
+        System.out.println("Starting worker: " + workerID);
 
         int count = 0;
 
         while (true) {
 
-            String result = jedis.rpop("logentries");
+            String result = redisQueueManager.pop();
 
             if (result != null) {
                 NeoEvent event = EventFactory.build(graphDb, result);
@@ -29,31 +37,37 @@ public class NeoFeeder implements Runnable {
                 if (event != null) {
 
                     try (Transaction tx = graphDb.beginTx()) {
-                        event.execute(graphDb);
+                        event.execute(graphDb, maxRelationships);
                         tx.success();
                     } catch (TransactionFailureException e) {
                         System.err.println("TransactionFailureException, need to restart");
-                        jedis.lpush("logentries", result);
-                        //graphDb.shutdown();
+                        redisQueueManager.rpush(result);
                         System.exit(0);
+                    } catch (NotFoundException e) {
+                        System.err.println("Not found exception, pushing the element back on the queue. " + e.getMessage() + ": " + result);
+                        redisQueueManager.rpush(result);
+                        continue;
+                    } catch (DeadlockDetectedException e) {
+                        System.err.println("Deadlock found exception, pushing the element back on the queue" + e.getMessage() + ": " + result);
+                        redisQueueManager.rpush(result);
+                        continue;
+                    } catch (EntityNotFoundException e) {
+                        System.err.println("EntityNotFoundException, pushing the element back on the queue" + e.getMessage() + ": " + result);
+                        redisQueueManager.rpush(result);
+                        continue;
+                    } catch (Exception e) {
+                        System.err.println("Unknown exception.. pushing the element back on the queue" + e.getMessage() + ": " + result);
+                        redisQueueManager.rpush(result);
+                        continue;
                     }
 
                     count += 1;
 
                     if (count % 1000 == 0) {
-                        System.out.println("Imported " + count + " entries from redis");
-
-                        try {
-                            Thread.sleep(10);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-
+                        System.out.println("WorkerID: " + workerID + " imported " + count + " entries from redis");
                     }
                 }
             }
-
         }
     }
-
 }

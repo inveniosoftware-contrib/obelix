@@ -1,67 +1,171 @@
 package events;
 
 import org.neo4j.graphdb.*;
+import org.neo4j.tooling.GlobalGraphOperations;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public class NeoHelpers {
 
-    static Label userLabel = DynamicLabel.label("User");
-    static Label recordLabel = DynamicLabel.label("Record");
-
     public static enum RelTypes implements RelationshipType {
         SEEN,
+        VIEWED,
         DOWNLOADED
     }
 
-    public static Node getOrCreateUserNode(GraphDatabaseService graphDb, Long userID) {
+    public static List<String> getAllNodes(GraphDatabaseService graphDb, String labelName) {
 
-        Node user;
+        List<String> node_ids = new ArrayList<>();
+        Label label = DynamicLabel.label(labelName);
+        ResourceIterable<Node> nodes;
 
-        ResourceIterator<Node> list =
-                graphDb.findNodesByLabelAndProperty(userLabel, "id_user", userID).iterator();
+        try (Transaction tx = graphDb.beginTx()) {
+            nodes = GlobalGraphOperations.at(graphDb).getAllNodesWithLabel(label);
+            tx.success();
 
-        if (list.hasNext()) {
-            user = list.next();
-        } else {
-            user = graphDb.createNode();
-            user.addLabel(userLabel);
-            user.setProperty("id_user", userID);
+            for (Node node : nodes) {
+                node_ids.add(node.getProperty("node_id").toString());
+            }
+
         }
 
-        return user;
+        return node_ids;
 
     }
 
-    public static Node getOrCreateRecordNode(GraphDatabaseService graphDb, Long recordID) {
+    public static Node getOrCreateNode(GraphDatabaseService graphDb,
+                                       String labelName,
+                                       String keyPropertyValue) {
 
-        Node user;
+        Node node;
+        Label label = DynamicLabel.label(labelName);
 
-        ResourceIterator<Node> list =
-                graphDb.findNodesByLabelAndProperty(recordLabel, "id_bibrec", recordID).iterator();
+        ResourceIterator<Node> list = graphDb.findNodesByLabelAndProperty(
+                label, "node_id", keyPropertyValue).iterator();
 
         if (list.hasNext()) {
-            user = list.next();
+            node = list.next();
         } else {
-            user = graphDb.createNode();
-            user.addLabel(recordLabel);
-            user.setProperty("id_bibrec", recordID);
+            node = graphDb.createNode();
+            node.addLabel(label);
+            node.setProperty("node_id", keyPropertyValue);
         }
 
-        return user;
-
+        return node;
     }
 
+    public static Node getOrCreateUserNode(GraphDatabaseService graphDb, String userID) {
+        return getOrCreateNode(graphDb, "User", userID);
+    }
 
-    public static Relationship getOrCreateRelationship(Node a, Node b,
-                                                       String propertyKey, String property,
-                                                       RelationshipType relType) {
+    public static Node getOrCreateItemNode(GraphDatabaseService graphDb, String ItemID) {
+        return getOrCreateNode(graphDb, "Item", ItemID);
+    }
+
+    public static boolean deletedAndMadeSpaceForNewRelationship(Node a, Long newTimestamp, int maxRelationships) {
+
+        Long currentRelationshipTimestamp;
+
+        List<Long> highestTimestamps = new ArrayList<>();
 
         for (Relationship relationship : a.getRelationships()) {
-            if (relationship.getEndNode().getProperty(propertyKey) == property) {
-                return relationship;
+            currentRelationshipTimestamp = Long.parseLong(relationship.getProperty("timestamp").toString());
+            highestTimestamps.add(currentRelationshipTimestamp);
+        }
+
+        if (highestTimestamps.size() < maxRelationships) {
+            return true;
+        }
+
+        Collections.sort(highestTimestamps);
+
+        int countDelete = 0;
+        Long timestamp = null;
+
+        for (Long t : highestTimestamps) {
+            if ((highestTimestamps.size() + 1 - countDelete) <= maxRelationships) {
+                //System.out.println("count delete: " + countDelete);
+                break;
+            }
+            countDelete += 1;
+            timestamp = t;
+        }
+
+        //System.out.println(newTimestamp + " limit: " + timestamp);
+
+        if (timestamp != null && newTimestamp > timestamp) {
+            timestamp = highestTimestamps.get(countDelete);
+        }
+
+
+        int deletedRelationships = 0;
+
+        if (timestamp != null) {
+            for (Relationship relationship : a.getRelationships()) {
+                //System.out.println("looking at " + relationship.getProperty("timestamp") + " which need to be larger than: " + timestamp);
+                currentRelationshipTimestamp = Long.parseLong(relationship.getProperty("timestamp").toString());
+
+                if (currentRelationshipTimestamp <= timestamp) {
+                    System.out.println("Deleting relationship with timestamp" + currentRelationshipTimestamp + ", the newTimestamp which caused this: " + newTimestamp);
+                    relationship.delete();
+                    deletedRelationships += 1;
+
+                    if (deletedRelationships > countDelete) {
+                        break;
+                    }
+
+                }
+            }
+        } else {
+            return true;
+        }
+
+        return newTimestamp > timestamp;
+
+    }
+
+    public static void createRealationship(Node user, Node Item,
+                                           Long timestamp,
+                                           RelationshipType relType,
+                                           int maxRelationships) {
+
+        boolean duplicate = false;
+        boolean newTimestampMoreRecentThanOneOfTheCurrentRelationhips = false;
+
+        int countRelationships = 0;
+
+        for (Relationship relationship : user.getRelationships()) {
+            countRelationships += 1;
+
+            //Lets see if the relationship exists already to avoid duplicates..
+            if (relationship.getEndNode().equals(Item)) {
+                //Update the timestamp of the relationship if the timestamp is more recent
+                if (timestamp > Long.parseLong(relationship.getProperty("timestamp").toString())) {
+                    relationship.setProperty("timestamp", timestamp);
+                }
+                duplicate = true;
+            } else if (timestamp > Long.parseLong(relationship.getProperty("timestamp").toString())) {
+                newTimestampMoreRecentThanOneOfTheCurrentRelationhips = true;
             }
         }
 
-        return a.createRelationshipTo(b, relType);
+        if (countRelationships < maxRelationships) {
 
+            Relationship r = user.createRelationshipTo(Item, relType);
+            r.setProperty("timestamp", timestamp);
+
+        } else {
+            if (newTimestampMoreRecentThanOneOfTheCurrentRelationhips
+                    && !duplicate
+                    && deletedAndMadeSpaceForNewRelationship(user, timestamp, maxRelationships)
+                    ) {
+
+                Relationship r = user.createRelationshipTo(Item, relType);
+                r.setProperty("timestamp", timestamp);
+
+            }
+        }
     }
 }

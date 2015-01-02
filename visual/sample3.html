@@ -11,20 +11,41 @@
             0x1f77b4ff, 0xaec7e8ff
         ];
 
-        var user_to_look_at = "58335770";
+        var user_to_look_at = "58328608";
+        var depth = "6";
+        var items_score = {};
 
         function beginAddNodesLoop(graph) {
 
-            graph.beginUpdate();
+            var items = {};
 
-            $.getJSON("http://localhost:4567/userrelations/" + user_to_look_at + "/2", function (d) {
+            console.log(items);
+
+            $.getJSON("http://localhost:4500/obelix/frecar/rh38949834gfg9f9/users/" + user_to_look_at + "/recommend/"+depth, function (d) {
                 $.each(d, function (key, val) {
-                    graph.addLink(val.source, val.target);
-                })
-
-            }).done(function () {
-                graph.endUpdate();
+                    items_score[key] = val;
+                });
             });
+
+            setInterval(function () {
+
+                console.log("Searching for new records!");
+
+                graph.beginUpdate();
+
+                $.getJSON("http://localhost:4500/obelix/frecar/rh38949834gfg9f9/users/" + user_to_look_at + "/relationships/"+depth, function (d) {
+                    $.each(d, function (key, val) {
+                        if (!(val.userid + val.itemid + "_depth_" + val.depth in items)) {
+                            console.log("Adding relationship between user: " + val.userid + " and " + "record: " + val.itemid + "_depth_" + val.depth);
+                            graph.addLink("user_" + val.userid, "item_" + val.itemid, val.depth);
+                            items[val.userid + val.itemid + "_depth_" + val.depth] = true;
+                        }
+                    })
+                }).done(function () {
+                    graph.endUpdate();
+                });
+
+            }, 1000);
 
         }
 
@@ -32,37 +53,76 @@
             var graph = Viva.Graph.graph();
 
             var layout = Viva.Graph.Layout.forceDirected(graph, {
-                springLength: 3000,
+                springLength: 4000,
                 springCoeff: 0.00008,
-                dragCoeff: 0.001,
-                gravity: -600.2
+                dragCoeff: 0.050,
+                gravity: -1000.2
             });
 
             var graphics = Viva.Graph.View.webglGraphics();
 
+            function get_user_depth_color(depth) {
+                custom_colors = {
+                    0: 0xf7a22eff,
+                    1: 0x0d232dff,
+                    2: 0x8da2acff,
+                    3: 0x5f7d8bff,
+                    4: 0x666666ff
+                };
+
+                return custom_colors[depth];
+            }
+
+            function get_record_depth_color(depth) {
+                custom_colors = {
+                    0: 0xe72e2eff,
+                    1: 0xe94242ff,
+                    2: 0xff6666ff,
+                    3: 0xee6c6cff,
+                    4: 0xffe5e5ff
+                };
+
+                return custom_colors[depth];
+            }
+
+            function get_link_depth_color(depth) {
+                custom_colors = {
+                    0: 0x1B465A,
+                    1: 0x1B465A,
+                    2: 0x1B465A,
+                    3: 0x1B465A,
+                    4: 0x1B465A
+                };
+
+                return custom_colors[depth];
+            }
+
             graphics
                     .node(function (node) {
-                        if(node.id.indexOf("user")>-1) {
-                            if(node.id.indexOf(user_to_look_at) > -1) {
-                                console.log("FOUND");
-                                return Viva.Graph.View.webglSquare(300, 0xc49c94ff);
-                            } else {
-                                return Viva.Graph.View.webglSquare(200, 0x1f77b4ff);
+                        if (node.id.indexOf("user") > -1) {
+
+                            if (node.id.indexOf(user_to_look_at) > -1) {
+                                return Viva.Graph.View.webglSquare(200, get_user_depth_color(node.links[0].data));
+                            }
+                            else {
+                                //return Viva.Graph.View.webglSquare(100, get_user_depth_color(node.links[0].data));
+                                return Viva.Graph.View.webglSquare((30 * node.links.length) * ((1 / (node.links[0].data + 5))), 0x0d232dff);
+
                             }
                         } else {
-                            return Viva.Graph.View.webglSquare(200, 0xaec7e8ff);
+                            //return Viva.Graph.View.webglSquare(30 + (50 * Math.log(node.links.length)), get_record_depth_color(node.links[0].data));
+                            return Viva.Graph.View.webglSquare(50 * node.links.length * ((1 / (node.links[0].data + 5))), 0xe72e2eff);
+                            //return Viva.Graph.View.webglSquare(100*items_score[node.id.substring(5)], 0xe72e2eff);
+
                         }
 
                         //return Viva.Graph.View.webglSquare(1 + Math.random() * 10, colors[(Math.random() * colors.length) << 0]);
 
                     })
-                    .link(function (link) {
 
-                        if(link.fromId.indexOf(user_to_look_at) > -1) {
-                            return Viva.Graph.View.webglLine(0x2ca02cff);
-                        } else {
-                            return Viva.Graph.View.webglLine(0xff7f0eff);
-                        }
+                    .link(function (link) {
+                        //return Viva.Graph.View.webglLine(0x0);
+                        return Viva.Graph.View.webglLine(0x1B465A);
 
                     });
 
@@ -75,17 +135,11 @@
                     });
 
             var events = Viva.Graph.webglInputEvents(graphics, graph);
-            events.mouseEnter(function (node) {
-                console.log('Mouse entered node: ' + node.id);
-            }).mouseLeave(function (node) {
-                console.log('Mouse left node: ' + node.id);
-            }).dblClick(function (node) {
-                console.log('Double click on node: ' + node.id);
-            }).click(function (node) {
-                console.log('Single click on node: ' + node.id);
+            events.click(function (node) {
+                console.log('Single click on node: id: ' + node.id + " depth: " + node.links[0].data + " linked to:" + node.links.length + " score: " + items_score[node.id.substring(5)]);
             });
 
-            renderer.run(100);
+            renderer.run(200);
             //graph.addLink(1, 2)
             beginAddNodesLoop(graph);
             l = layout;

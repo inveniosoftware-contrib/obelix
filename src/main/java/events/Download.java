@@ -16,22 +16,14 @@ public class Download implements NeoEvent {
         "client_host" : "88.192.215.8"
     */
 
-    @Key
+    @Key("id_bibrec")
     Long id_bibrec;
 
-    @Key
-    Long id_bibdoc;
-
-    @Key
+    @Key("id_user")
     Long id_user;
 
-    @Key
-    String client_host;
-
-    @Override
-    public String print() {
-        return "Download, user: " + this.getUser();
-    }
+    @Key("timestamp")
+    Long timestamp;
 
     @Override
     public boolean validate() {
@@ -39,19 +31,26 @@ public class Download implements NeoEvent {
     }
 
     @Override
-    public void execute(GraphDatabaseService graphDb) {
+    public void execute(GraphDatabaseService graphDb, int maxRelationships) {
+        Node user = NeoHelpers.getOrCreateUserNode(graphDb, this.id_user.toString());
+        Node item = NeoHelpers.getOrCreateItemNode(graphDb, this.id_bibrec.toString());
 
-        Node user = NeoHelpers.getOrCreateUserNode(graphDb, this.id_user);
-        Node record = NeoHelpers.getOrCreateRecordNode(graphDb, this.id_bibrec);
-
-        NeoHelpers.getOrCreateRelationship(user, record, "id_bibrec",
-                record.getProperty("id_bibrec").toString(), NeoHelpers.RelTypes.DOWNLOADED);
+        NeoHelpers.createRealationship(user, item, this.timestamp, NeoHelpers.RelTypes.DOWNLOADED, maxRelationships);
 
     }
 
     @Override
-    public Long getUser() {
-        return this.id_user;
+    public String getUser() {
+        return this.id_user.toString();
     }
 
+    @Override
+    public String getItem() {
+        return this.id_bibrec.toString();
+    }
+
+    @Override
+    public String getTimestamp() {
+        return this.timestamp.toString();
+    }
 }
