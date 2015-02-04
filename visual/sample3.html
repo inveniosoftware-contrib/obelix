@@ -11,42 +11,78 @@
             0x1f77b4ff, 0xaec7e8ff
         ];
 
-        var user_to_look_at = "58328608";
-        var depth = "6";
-        var items_score = {};
+        var host = "http://localhost:4700/";
+        //var host = "http://localhost:4500/";
+
+        var user_to_look_at = "58354081";
+        var depth = "2";
+        var items_score= {};
+
+        var oldestTimestamp = "1420700531853";
+        var newestTimestamp = "1421314093000";
+        var importanceFactor = "1";
+
+        //var relationships_url = host+"obelix/frecar/h928f9384gf93849f38g9/users/" + user_to_look_at + "/relationships/"+depth+"/"+oldestTimestamp+"/"+newestTimestamp;
+        var relationships_url = host+"obelix/frecar/h928f9384gf93849f38g9/users/" + user_to_look_at + "/relationships/"+depth;
+
+        var recommend_url = host+"obelix/frecar/h928f9384gf93849f38g9/users/" + user_to_look_at + "/recommend/"+depth;
+        //var recommend_url = host+"obelix/frecar/rh38949834gfg9f9/users/" + user_to_look_at + "/recommend/"+depth+"/"+oldestTimestamp+"/"+newestTimestamp+"/"+importanceFactor;
+
+        function add_relationships(graph, items) {
+
+            graph.beginUpdate();
+
+            //console.log(host+"obelix/frecar/rh38949834gfg9f9/users/" + user_to_look_at + "/relationships/"+depth);
+
+            //var blocklist = ["1477530", "1092437"];
+
+            var blocklist = [];
+
+            $.getJSON(relationships_url, function (d) {
+                $.each(d, function (key, val) {
+
+                    if (!(blocklist.indexOf(val.itemid) > -1) && !(val.userid + val.itemid + "_depth_" + val.depth in items)) {
+                        //console.log("Adding relationship between user: " + val.userid + " and " + "record: " + val.itemid + "_depth_" + val.depth);
+                        graph.addLink("user_" + val.userid, "item_" + val.itemid, val.depth);
+                        items[val.userid + val.itemid + "_depth_" + val.depth] = true;
+                    } else {
+                        console.log("duplicate!");
+                    }
+                })
+            }).done(function () {
+                graph.endUpdate();
+            });
+
+        }
+
+        function get_recommendations() {
+            $.getJSON(recommend_url, function (d) {
+                $.each(d, function (key, val) {
+                    items_score[key] = val;
+                });
+            });
+        }
 
         function beginAddNodesLoop(graph) {
 
             var items = {};
 
-            console.log(items);
+            //console.log(items);
 
-            $.getJSON("http://localhost:4500/obelix/frecar/rh38949834gfg9f9/users/" + user_to_look_at + "/recommend/"+depth, function (d) {
-                $.each(d, function (key, val) {
-                    items_score[key] = val;
-                });
-            });
-
+            /*
             setInterval(function () {
+                get_recommendations(graph, items);
+            }, 3000000);
+             */
 
-                console.log("Searching for new records!");
+            get_recommendations(graph, items);
 
-                graph.beginUpdate();
-
-                $.getJSON("http://localhost:4500/obelix/frecar/rh38949834gfg9f9/users/" + user_to_look_at + "/relationships/"+depth, function (d) {
-                    $.each(d, function (key, val) {
-                        if (!(val.userid + val.itemid + "_depth_" + val.depth in items)) {
-                            console.log("Adding relationship between user: " + val.userid + " and " + "record: " + val.itemid + "_depth_" + val.depth);
-                            graph.addLink("user_" + val.userid, "item_" + val.itemid, val.depth);
-                            items[val.userid + val.itemid + "_depth_" + val.depth] = true;
-                        }
-                    })
-                }).done(function () {
-                    graph.endUpdate();
-                });
-
-            }, 1000);
-
+            add_relationships(graph, items);
+/*
+            setInterval(function () {
+                add_relationships(graph, items);
+            }, 10000000);
+*/
         }
 
         function onLoad() {
@@ -101,18 +137,27 @@
                     .node(function (node) {
                         if (node.id.indexOf("user") > -1) {
 
-                            if (node.id.indexOf(user_to_look_at) > -1) {
-                                return Viva.Graph.View.webglSquare(200, get_user_depth_color(node.links[0].data));
+                            if (node.id == "user_"+user_to_look_at) {
+                                return Viva.Graph.View.webglSquare(300, 0xf7a22eff);
                             }
                             else {
                                 //return Viva.Graph.View.webglSquare(100, get_user_depth_color(node.links[0].data));
-                                return Viva.Graph.View.webglSquare((30 * node.links.length) * ((1 / (node.links[0].data + 5))), 0x0d232dff);
-
+                                //return Viva.Graph.View.webglSquare((50 * node.links.length) * ((1 / (node.links[0].data + 5))), 0x0d232dff);
+                                //return Viva.Graph.View.webglSquare(200*(1/node.links[0].data), 0x0d232dff);
+                                return Viva.Graph.View.webglSquare(200*(1/2));
                             }
                         } else {
                             //return Viva.Graph.View.webglSquare(30 + (50 * Math.log(node.links.length)), get_record_depth_color(node.links[0].data));
-                            return Viva.Graph.View.webglSquare(50 * node.links.length * ((1 / (node.links[0].data + 5))), 0xe72e2eff);
+                            //return Viva.Graph.View.webglSquare(30 + 70 * node.links.length * ((1 / (node.links[0].data + 5))), 0xe72e2eff);
                             //return Viva.Graph.View.webglSquare(100*items_score[node.id.substring(5)], 0xe72e2eff);
+
+                            var score = items_score[node.id.substring(5)];
+
+                            if(score == undefined) {
+                                score = 0.01;
+                            }
+
+                            return Viva.Graph.View.webglSquare(50+600*score, 0xe72e2eff);
 
                         }
 
@@ -134,14 +179,23 @@
                         renderLinks: true
                     });
 
+
             var events = Viva.Graph.webglInputEvents(graphics, graph);
             events.click(function (node) {
-                console.log('Single click on node: id: ' + node.id + " depth: " + node.links[0].data + " linked to:" + node.links.length + " score: " + items_score[node.id.substring(5)]);
+                console.log('Single click on node: id: ' + node.id + " depth: " + node.links[0].data + " linked to:" + node.links.length + " score: " + items_score[node.id.substring(5)] + " go directly to record: https://cds.cern.ch/record/"+node.id.substring(5));
             });
 
-            renderer.run(200);
+
+            renderer.run();
             //graph.addLink(1, 2)
             beginAddNodesLoop(graph);
+
+
+
+            for(var j = 0; j<60; j++) {
+                renderer.zoomOut();
+            }
+
             l = layout;
         }
     </script>

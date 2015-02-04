@@ -13,8 +13,8 @@ public class Helpers {
 
         int order = descending ? -1 : 1;
 
-        Stream<Map.Entry<String, Double>> sorted = map.entrySet().stream().sorted((s1,s2) ->
-                s1.getValue().compareTo(s2.getValue())*order);
+        Stream<Map.Entry<String, Double>> sorted = map.entrySet().stream().sorted((s1, s2) ->
+                s1.getValue().compareTo(s2.getValue()) * order);
 
         sorted.forEachOrdered(new Consumer<Map.Entry<String, Double>>() {
             public void accept(Map.Entry<String, Double> stringDoubleEntry) {

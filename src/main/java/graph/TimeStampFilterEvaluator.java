@@ -16,6 +16,7 @@ public class TimeStampFilterEvaluator implements Evaluator {
 
     @Override
     public Evaluation evaluate(Path path) {
+
         if (path.lastRelationship() != null) {
 
             if (sinceTimestamp != null && untilTimestmap != null) {
@@ -23,8 +24,9 @@ public class TimeStampFilterEvaluator implements Evaluator {
                 Long until = Long.parseLong(untilTimestmap);
                 Long since = Long.parseLong(sinceTimestamp);
                 Long current = Long.parseLong(path.lastRelationship().getProperty("timestamp").toString());
+
                 if (current > until || current < since) {
-                    return Evaluation.ofIncludes(false);
+                    return Evaluation.of(false, false);
                 } else {
                     return Evaluation.ofIncludes(true);
                 }
@@ -34,7 +36,7 @@ public class TimeStampFilterEvaluator implements Evaluator {
                 Long since = Long.parseLong(sinceTimestamp);
                 Long current = Long.parseLong(path.lastRelationship().getProperty("timestamp").toString());
                 if (current < since) {
-                    return Evaluation.ofIncludes(false);
+                    return Evaluation.of(false, false);
                 } else {
                     return Evaluation.ofIncludes(true);
                 }
@@ -43,7 +45,7 @@ public class TimeStampFilterEvaluator implements Evaluator {
                 Long until = Long.parseLong(untilTimestmap);
                 Long current = Long.parseLong(path.lastRelationship().getProperty("timestamp").toString());
                 if (current > until) {
-                    return Evaluation.ofIncludes(false);
+                    return Evaluation.of(false, false);
                 } else {
                     return Evaluation.ofIncludes(true);
                 }

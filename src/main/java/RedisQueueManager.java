@@ -1,21 +1,68 @@
 import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisPool;
+import redis.clients.jedis.JedisPoolConfig;
+import redis.clients.jedis.exceptions.JedisConnectionException;
 
 public class RedisQueueManager {
 
-    Jedis jedis;
+    JedisPool pool;
     String queueName;
+    String prefix;
 
     public RedisQueueManager(String queueName) {
-        this.jedis = new Jedis("localhost", 6379);
         this.queueName = queueName;
+        this.prefix = "obelix::";
+        this.connect();
+    }
+
+    private synchronized void connect() {
+        JedisPoolConfig config = new JedisPoolConfig();
+        config.setTestOnBorrow(true);
+        config.setTestOnReturn(true);
+        config.setTestWhileIdle(true);
+        this.pool = new JedisPool(config, "localhost", 6379);
+    }
+
+    private synchronized void ensureConnected() {
+        try (Jedis jedis = pool.getResource()) {
+            if(!jedis.isConnected()) {
+                jedis.connect();
+            }
+        } catch (JedisConnectionException e) {
+            this.connect();
+        }
     }
 
     public synchronized String pop() {
-        return jedis.lpop(this.queueName);
+        ensureConnected();
+
+        try (Jedis jedis = pool.getResource()) {
+            return jedis.lpop(this.prefix + this.queueName);
+        }
     }
 
     public synchronized void rpush(String entry) {
-        jedis.rpush(this.queueName, entry);
+        ensureConnected();
+
+        try (Jedis jedis = pool.getResource()) {
+            jedis.rpush(this.prefix + this.queueName, entry);
+        }
+    }
+
+    public synchronized String set(String key, String value) {
+        ensureConnected();
+
+        try (Jedis jedis = pool.getResource()) {
+            return jedis.set(this.prefix + key, value);
+        }
+    }
+
+    public synchronized String get(String key) {
+        ensureConnected();
+
+        try (Jedis jedis = pool.getResource()) {
+            return jedis.get(this.prefix + key);
+        }
     }
 
 }

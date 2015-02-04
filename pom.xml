@@ -20,9 +20,7 @@
         </repository>
     </repositories>
 
-
     <build>
-
         <pluginManagement>
             <plugins>
                 <plugin>
@@ -75,13 +73,20 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
-    <dependencies>
 
+    <dependencies>
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>4.11</version>
             <scope>test</scope>
+        </dependency>
+
+
+        <dependency>
+            <groupId>net.kencochrane.raven</groupId>
+            <artifactId>raven</artifactId>
+            <version>4.0</version>
         </dependency>
 
         <dependency>

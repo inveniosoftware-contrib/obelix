@@ -1,18 +1,33 @@
 package events;
 
+import graph.ObelixNodeNotFoundException;
 import org.neo4j.graphdb.*;
+import org.neo4j.graphdb.index.Index;
+import org.neo4j.graphdb.index.IndexManager;
+import org.neo4j.graphdb.index.UniqueFactory;
 import org.neo4j.tooling.GlobalGraphOperations;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class NeoHelpers {
 
+    private final static Logger LOGGER = Logger.getLogger(NeoHelpers.class.getName());
+
     public static enum RelTypes implements RelationshipType {
-        SEEN,
         VIEWED,
         DOWNLOADED
+    }
+
+    public static String normalizedTimeStamp(String timestamp) {
+        Double timeStamp = Double.parseDouble(timestamp);
+        String formatted = String.format("%.4f", timeStamp);
+        String[] parts = formatted.split("\\.");
+        return String.valueOf(parts[0]);
     }
 
     public static List<String> getAllNodes(GraphDatabaseService graphDb, String labelName) {
@@ -23,149 +38,194 @@ public class NeoHelpers {
 
         try (Transaction tx = graphDb.beginTx()) {
             nodes = GlobalGraphOperations.at(graphDb).getAllNodesWithLabel(label);
-            tx.success();
 
             for (Node node : nodes) {
-                node_ids.add(node.getProperty("node_id").toString());
+                try {
+                    node_ids.add(node.getProperty("node_id").toString());
+                } catch (Exception e) {
+                    LOGGER.log(Level.WARNING,"Can't find a given node... skipping");
+                }
             }
 
+            tx.success();
         }
 
         return node_ids;
 
     }
 
-    public static Node getOrCreateNode(GraphDatabaseService graphDb,
-                                       String labelName,
-                                       String keyPropertyValue) {
+    public static UniqueFactory.UniqueNodeFactory getOrCreateNode(GraphDatabaseService graphDb,
+                                                                  String index,
+                                                                  String labelName) {
 
-        Node node;
-        Label label = DynamicLabel.label(labelName);
+        try (Transaction tx = graphDb.beginTx()) {
+            UniqueFactory.UniqueNodeFactory result = new UniqueFactory.UniqueNodeFactory(graphDb, index) {
+                @Override
+                protected void initialize(Node created, Map<String, Object> properties) {
+                    created.addLabel(DynamicLabel.label(labelName));
+                    created.setProperty("node_id", properties.get("node_id"));
+                }
+            };
+            tx.success();
+            return result;
+        }
+    }
 
-        ResourceIterator<Node> list = graphDb.findNodesByLabelAndProperty(
-                label, "node_id", keyPropertyValue).iterator();
+    public static Node getUserNode(GraphDatabaseService graphDb, String userID) throws ObelixNodeNotFoundException {
+        IndexManager index = graphDb.index();
+        Index<Node> users = index.forNodes("users");
 
-        if (list.hasNext()) {
-            node = list.next();
-        } else {
-            node = graphDb.createNode();
-            node.addLabel(label);
-            node.setProperty("node_id", keyPropertyValue);
+        Node node = users.get("node_id", userID).getSingle();
+
+        if (node == null) {
+            throw new ObelixNodeNotFoundException();
         }
 
         return node;
     }
 
     public static Node getOrCreateUserNode(GraphDatabaseService graphDb, String userID) {
-        return getOrCreateNode(graphDb, "User", userID);
+
+        IndexManager index = graphDb.index();
+        Index<Node> usersIndex = index.forNodes("users");
+
+        Node node = usersIndex.get("node_id", userID).getSingle();
+
+        if (node == null) {
+            node = graphDb.createNode(DynamicLabel.label("User"));
+            node.setProperty("node_id", userID);
+            usersIndex.add(node, "node_id", userID);
+        }
+
+        return node;
+
     }
 
-    public static Node getOrCreateItemNode(GraphDatabaseService graphDb, String ItemID) {
-        return getOrCreateNode(graphDb, "Item", ItemID);
+    public static Node getOrCreateItemNode(GraphDatabaseService graphDb, String itemID) {
+
+        IndexManager index = graphDb.index();
+        Index<Node> usersIndex = index.forNodes("items");
+
+        Node node = usersIndex.get("node_id", itemID).getSingle();
+
+        if (node == null) {
+            node = graphDb.createNode(DynamicLabel.label("Item"));
+            node.setProperty("node_id", itemID);
+            usersIndex.add(node, "node_id", itemID);
+        }
+
+        return node;
+
     }
 
-    public static boolean deletedAndMadeSpaceForNewRelationship(Node a, Long newTimestamp, int maxRelationships) {
+    public static Node getItemNode(GraphDatabaseService graphDb, String itemID) throws ObelixNodeNotFoundException {
+        IndexManager index = graphDb.index();
+        Index<Node> users = index.forNodes("items");
 
-        Long currentRelationshipTimestamp;
+        Node node = users.get("node_id", itemID).getSingle();
 
-        List<Long> highestTimestamps = new ArrayList<>();
-
-        for (Relationship relationship : a.getRelationships()) {
-            currentRelationshipTimestamp = Long.parseLong(relationship.getProperty("timestamp").toString());
-            highestTimestamps.add(currentRelationshipTimestamp);
+        if (node == null) {
+            throw new ObelixNodeNotFoundException();
         }
 
-        if (highestTimestamps.size() < maxRelationships) {
-            return true;
-        }
-
-        Collections.sort(highestTimestamps);
-
-        int countDelete = 0;
-        Long timestamp = null;
-
-        for (Long t : highestTimestamps) {
-            if ((highestTimestamps.size() + 1 - countDelete) <= maxRelationships) {
-                //System.out.println("count delete: " + countDelete);
-                break;
-            }
-            countDelete += 1;
-            timestamp = t;
-        }
-
-        //System.out.println(newTimestamp + " limit: " + timestamp);
-
-        if (timestamp != null && newTimestamp > timestamp) {
-            timestamp = highestTimestamps.get(countDelete);
-        }
+        return users.get("node_id", itemID).getSingle();
+    }
 
 
-        int deletedRelationships = 0;
+    public static void makeSureTheUserDoesNotExceedMaxRelationshipsLimit(GraphDatabaseService graphDb,
+                                                                         Node a, int maxRelationships) {
 
-        if (timestamp != null) {
+
+        // First we remove the duplicates, we only need to
+        // iterate once because we sort them by timestamp (latest first).
+
+
+        String currentUser = "";
+
+        int duplicatesRemoved = 0;
+
+        try (Transaction tx = graphDb.beginTx()) {
+
+            currentUser = a.getProperty("node_id").toString();
+
+            List<Relationship> relationships = new ArrayList<>();
+
             for (Relationship relationship : a.getRelationships()) {
-                //System.out.println("looking at " + relationship.getProperty("timestamp") + " which need to be larger than: " + timestamp);
-                currentRelationshipTimestamp = Long.parseLong(relationship.getProperty("timestamp").toString());
-
-                if (currentRelationshipTimestamp <= timestamp) {
-                    System.out.println("Deleting relationship with timestamp" + currentRelationshipTimestamp + ", the newTimestamp which caused this: " + newTimestamp);
-                    relationship.delete();
-                    deletedRelationships += 1;
-
-                    if (deletedRelationships > countDelete) {
-                        break;
-                    }
-
-                }
+                relationships.add(relationship);
             }
-        } else {
-            return true;
+
+            List<String> seenAlready = new ArrayList<>();
+
+            Collections.sort(relationships, new RelationshipComperator());
+
+            for (Relationship rel : relationships) {
+                String nodeID = rel.getEndNode().getProperty("node_id").toString();
+
+                if (seenAlready.contains(nodeID)) {
+                    duplicatesRemoved += 1;
+                    rel.delete();
+                } else {
+                    seenAlready.add(nodeID);
+                }
+
+            }
+
+            tx.success();
         }
 
-        return newTimestamp > timestamp;
+        int oldRemoved = 0;
+
+        // Then we make sure that the user does not hold more than *maxRelationships
+        try (Transaction tx = graphDb.beginTx()) {
+
+            List<Relationship> relationships = new ArrayList<>();
+
+            for (Relationship relationship : a.getRelationships()) {
+                relationships.add(relationship);
+            }
+
+            Collections.sort(relationships, new RelationshipComperator());
+
+            int c = 0;
+            for (Relationship rel : relationships) {
+
+                if (c >= maxRelationships) {
+                    oldRemoved += 1;
+                    rel.delete();
+                }
+
+                c += 1;
+
+            }
+
+            tx.success();
+        }
+
+        if(duplicatesRemoved > 0 || oldRemoved > 0) {
+            LOGGER.log(Level.FINE,"Cleans up relationships for "
+                            + currentUser + " deletes: "
+                            + duplicatesRemoved + " duplicates and "
+                            + oldRemoved + " old relationships");
+
+        }
 
     }
 
-    public static void createRealationship(Node user, Node Item,
-                                           Long timestamp,
+    public static void createRealationship(GraphDatabaseService graphdb,
+                                           Node user,
+                                           Node item,
+                                           String timestamp,
                                            RelationshipType relType,
                                            int maxRelationships) {
 
-        boolean duplicate = false;
-        boolean newTimestampMoreRecentThanOneOfTheCurrentRelationhips = false;
-
-        int countRelationships = 0;
-
-        for (Relationship relationship : user.getRelationships()) {
-            countRelationships += 1;
-
-            //Lets see if the relationship exists already to avoid duplicates..
-            if (relationship.getEndNode().equals(Item)) {
-                //Update the timestamp of the relationship if the timestamp is more recent
-                if (timestamp > Long.parseLong(relationship.getProperty("timestamp").toString())) {
-                    relationship.setProperty("timestamp", timestamp);
-                }
-                duplicate = true;
-            } else if (timestamp > Long.parseLong(relationship.getProperty("timestamp").toString())) {
-                newTimestampMoreRecentThanOneOfTheCurrentRelationhips = true;
-            }
+        if (timestamp == null) {
+            return;
         }
 
-        if (countRelationships < maxRelationships) {
+        Relationship r = user.createRelationshipTo(item, relType);
+        r.setProperty("timestamp", timestamp);
 
-            Relationship r = user.createRelationshipTo(Item, relType);
-            r.setProperty("timestamp", timestamp);
+        makeSureTheUserDoesNotExceedMaxRelationshipsLimit(graphdb, user, maxRelationships);
 
-        } else {
-            if (newTimestampMoreRecentThanOneOfTheCurrentRelationhips
-                    && !duplicate
-                    && deletedAndMadeSpaceForNewRelationship(user, timestamp, maxRelationships)
-                    ) {
-
-                Relationship r = user.createRelationshipTo(Item, relType);
-                r.setProperty("timestamp", timestamp);
-
-            }
-        }
     }
 }

@@ -1,16 +1,13 @@
 package graph;
 
 import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.Node;
+import org.neo4j.graphdb.NotFoundException;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.traversal.Evaluators;
 import org.neo4j.tooling.GlobalGraphOperations;
 
 import java.util.ArrayList;
 import java.util.List;
-
-import static events.NeoHelpers.getOrCreateNode;
 
 
 public class RelationGraph {
@@ -19,30 +16,6 @@ public class RelationGraph {
 
     public RelationGraph(GraphDatabaseService graphdb) {
         this.graphdb = graphdb;
-    }
-
-    public List<String> getAllRelationsForUserGivenLabel(String nodeLabel, String nodeID, String relType,
-                                                         String sinceTimestamp, String untilTimestmap) {
-
-        List<String> result = new ArrayList<>();
-
-        try (Transaction tx = graphdb.beginTx()) {
-            Node startNode = getOrCreateNode(graphdb, nodeLabel, nodeID);
-            tx.success();
-
-            for (Node node : graphdb.traversalDescription()
-                    .breadthFirst()
-                    .evaluator(Evaluators.excludeStartPosition())
-                    //.evaluator(new TimeStampFilterEvaluator(sinceTimestamp, untilTimestmap))
-                    .evaluator(Evaluators.toDepth(1))
-                    .traverse(startNode).nodes()) {
-
-                result.add(node.getProperty("node_id").toString());
-
-            }
-
-            return result;
-        }
     }
 
     public List<String> getAll() {
@@ -56,54 +29,83 @@ public class RelationGraph {
 
             List<String> relations_ids = new ArrayList<>();
 
-            tx.success();
-
             Long oldestTimestamp = null;
             Long newestTimestamp = null;
 
-            for (Relationship node : rel) {
-                if (type != null && !node.getType().name().equals(type)) {
-                    continue;
+            for (Relationship relationship : rel) {
+
+                try {
+                    if (type != null && !relationship.getType().name().equals(type)) {
+                        continue;
+                    }
+
+                    long relTimestamp = Long.parseLong(relationship.getProperty("timestamp").toString());
+
+                    if (oldestTimestamp == null) {
+                        oldestTimestamp = relTimestamp;
+                    }
+
+                    if (newestTimestamp == null) {
+                        newestTimestamp = relTimestamp;
+                    }
+
+                    if (relTimestamp < oldestTimestamp) {
+                        oldestTimestamp = relTimestamp;
+                    }
+
+                    if (relTimestamp > newestTimestamp) {
+                        newestTimestamp = relTimestamp;
+                    }
+
+                    String key =
+                            relationship.getProperty("timestamp") + ":" +
+                                    relationship.getStartNode().getProperty("node_id").toString() + "-" +
+                                    relationship.getEndNode().getProperty("node_id").toString();
+
+                    relations_ids.add(key);
+
+                } catch (NotFoundException e) {
+                    System.err.println("Ignores one relationship, probably deleted..");
                 }
 
-                long relTimestamp = Long.parseLong(node.getProperty("timestamp").toString());
-
-                if(oldestTimestamp == null) {
-                    oldestTimestamp = relTimestamp;
-                }
-
-                if(newestTimestamp == null) {
-                    newestTimestamp = relTimestamp;
-                }
-
-                if(relTimestamp < oldestTimestamp) {
-                    oldestTimestamp = relTimestamp;
-                }
-
-                if(relTimestamp > newestTimestamp) {
-                    newestTimestamp = relTimestamp;
-                }
-
-                String key =
-                        node.getProperty("timestamp") + ":" +
-                        node.getStartNode().getProperty("node_id").toString() +"-" +
-                        node.getEndNode().getProperty("node_id").toString();
-
-                relations_ids.add(key);
-
-                /*relations.put(
-                        node.getStartNode().getProperty("node_id").toString(),
-                        node.getEndNode().getProperty("node_id").toString());
-                */
             }
 
             System.out.println("Newest timestamp: " + newestTimestamp);
             System.out.println("Oldest timestamp: " + oldestTimestamp);
 
+            tx.success();
+
             return relations_ids;
         }
     }
 
+
+    /*
+    public List<String> getAllRelationsForUserGivenLabel(String nodeLabel, String nodeID, String relType,
+                                                         String sinceTimestamp, String untilTimestmap) {
+
+        List<String> result = new ArrayList<>();
+
+        try (Transaction tx = graphdb.beginTx()) {
+
+            Node startNode = getOrCreateNode(graphdb, "users", "User").getOrCreate("node_id", nodeID);
+
+            for (Node node : graphdb.traversalDescription()
+                    .breadthFirst()
+                    .evaluator(Evaluators.excludeStartPosition())
+                    //.evaluator(new TimeStampFilterEvaluator(sinceTimestamp, untilTimestmap))
+                    .evaluator(Evaluators.toDepth(1))
+                    .traverse(startNode).nodes()) {
+
+                result.add(node.getProperty("node_id").toString());
+
+            }
+
+            tx.success();
+
+            return result;
+        }
+    }*/
 
 /*
     public List<JsonObject> getAllRelationshipsTuples() {

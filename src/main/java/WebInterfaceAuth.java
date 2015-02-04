@@ -15,9 +15,12 @@ public class WebInterfaceAuth {
     }
 
     public static boolean tokenIsValid(String service, String user, String token) {
-        String key = service+"_"+user;
+        String key = service+"-"+user;
         Map<String, String> validTokens = new HashMap<>();
-        validTokens.put("obelix_frecar", "rh38949834gfg9f9");
+        validTokens.put("obelix-cern-prod", "id8734g8sodif9hw3894fh");
+        validTokens.put("obelix-cern-test", "abdsidfsi8gf9wfigf32r2");
+        validTokens.put("obelix-ir-test", "ihf9ewhg943gf98wuiofheuh");
+        validTokens.put("obelix-frecar", "h928f9384gf93849f38g9");
         return validTokens.containsKey(key) && validTokens.get(key).equals(token);
     }
 

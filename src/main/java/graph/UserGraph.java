@@ -3,14 +3,14 @@ package graph;
 
 import org.neo4j.graphdb.*;
 import org.neo4j.graphdb.traversal.Evaluators;
+import org.neo4j.graphdb.traversal.Uniqueness;
 
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import static events.NeoHelpers.getAllNodes;
-import static events.NeoHelpers.getOrCreateUserNode;
+import static events.NeoHelpers.*;
 
 public class UserGraph {
 
@@ -23,7 +23,7 @@ public class UserGraph {
         int depth;
 
         public double getImportanceFactor(int importanceFactorInteger) {
-            return 1.0 / (depth * importanceFactorInteger + 1.0);
+            return Math.max(0.0, 1.0 / (10 * depth * importanceFactorInteger + 1.0));
         }
 
         public UserItemRelationship(String userid, String itemid, String relname, String timestamp, int depth) {
@@ -33,6 +33,7 @@ public class UserGraph {
             this.depth = depth;
             this.timestamp = timestamp;
         }
+
     }
 
     public static final Label LABEL = DynamicLabel.label("User");
@@ -47,27 +48,126 @@ public class UserGraph {
         return getAllNodes(this.graphdb, "User");
     }
 
-    public List<UserItemRelationship> relationships(String userID, String depth) {
-        return relationships(userID, depth, null, null);
+    public String cleanAllRelationships(String max) throws ObelixNodeNotFoundException {
+
+        for (String userid : getAll()) {
+            System.out.println(userid + " " + cleanRelationships(userid, max));
+        }
+
+        return "done";
+
     }
 
-    public List<UserItemRelationship> relationships(String userID, String depth, String sinceTimestamp, String untilTimestamp) {
+    public String cleanRelationships(String userid, String max) throws ObelixNodeNotFoundException {
 
-        List<UserItemRelationship> userItemRelationships = new LinkedList<>();
+        int relationshipCountBefore = 0;
+        int relationshipCountAfter = 0;
 
-        int currentDepth = 0;
-        Label lastSeenLabel = null;
+        Node user;
 
         try (Transaction tx = graphdb.beginTx()) {
-            Node user = getOrCreateUserNode(graphdb, userID);
+
+            user = getUserNode(graphdb, userid);
+
+            for (Relationship rel : user.getRelationships()) {
+                relationshipCountBefore += 1;
+            }
+            tx.success();
+        }
+
+        makeSureTheUserDoesNotExceedMaxRelationshipsLimit(graphdb, user, Integer.parseInt(max));
+
+        try (Transaction tx = graphdb.beginTx()) {
+
+            user = getUserNode(graphdb, userid);
+
+            for (Relationship rel : user.getRelationships()) {
+                relationshipCountAfter += 1;
+            }
+            tx.success();
+        }
+        return "Before: " + relationshipCountBefore + " - After: " + relationshipCountAfter;
+
+    }
+
+    public List<UserItemRelationship> allRelationships(String userID) throws Exception {
+        return relationships(userID, "1", null, null, false);
+    }
+
+    public List<UserItemRelationship> relationships(String userID, String depth) throws Exception {
+        return relationships(userID, depth, null, null, false);
+    }
+
+    public List<UserItemRelationship> relationships(String userID, String depth,
+                                                    String sinceTimestamp, String untilTimestamp) throws ObelixNodeNotFoundException {
+
+        return relationships(userID, depth, sinceTimestamp, untilTimestamp, false);
+
+    }
+
+
+    public List<UserItemRelationship> relationships(String userID, String depth,
+                                                    String sinceTimestamp, String untilTimestamp,
+                                                    boolean removeDuplicates)
+
+            throws ObelixNodeNotFoundException {
+
+        try (Transaction tx = graphdb.beginTx()) {
+
+            List<UserItemRelationship> userItemRelationships = new LinkedList<>();
+            Node user = getUserNode(graphdb, userID);
+
+            for (Path path : graphdb.traversalDescription()
+                    .breadthFirst()
+                    .expand(new TimeStampExpander(sinceTimestamp, untilTimestamp, depth))
+                    .evaluator(Evaluators.toDepth(Integer.parseInt(depth)))
+                    .uniqueness(Uniqueness.RELATIONSHIP_GLOBAL)
+                    .traverse(user)) {
+
+                if (path.lastRelationship() != null) {
+
+                    String userid = path.lastRelationship().getStartNode().getProperty("node_id").toString();
+                    String itemid = path.lastRelationship().getEndNode().getProperty("node_id").toString();
+                    String timestamp = path.lastRelationship().getProperty("timestamp").toString();
+                    String relname = userid + itemid + String.valueOf(timestamp);
+
+                    userItemRelationships.add(
+                            new UserItemRelationship(userid, itemid,
+                            relname, timestamp, path.length()));
+
+                }
+            }
+
+            tx.success();
+            return userItemRelationships;
+        }
+    }
+
+    /*
+    public List<UserItemRelationship> relationships(String userID, String depth,
+                                                    String sinceTimestamp, String untilTimestamp,
+                                                    boolean removeDuplicates)
+
+            throws ObelixNodeNotFoundException {
+
+        try (Transaction tx = graphdb.beginTx()) {
+
+            List<UserItemRelationship> userItemRelationships = new LinkedList<>();
+
+            int currentDepth = 0;
+            Label lastSeenLabel = null;
+
+            Node user = getUserNode(graphdb, userID);
 
             Map<String, Boolean> added = new HashMap<>();
 
-            for (Node node : graphdb.traversalDescription()
+            for ( Node node : graphdb.traversalDescription()
                     .breadthFirst()
-                    .evaluator(Evaluators.toDepth(Integer.parseInt(depth)))
-                    .evaluator(new TimeStampFilterEvaluator(sinceTimestamp, untilTimestamp))
-                    .traverse(user).nodes()) {
+                    .evaluator( Evaluators.toDepth(Integer.parseInt(depth)) )
+                    .traverse( user ).nodes() )
+            {
+
+                //Node node = position.startNode();
 
                 Label currentLabel = node.getLabels().iterator().next();
 
@@ -84,33 +184,52 @@ public class UserGraph {
                 if (node.hasLabel(UserGraph.LABEL)) {
                     for (Relationship rel : node.getRelationships()) {
 
-                        long relTimestamp = Long.parseLong(rel.getProperty("timestamp").toString());
+                        try {
 
-                        if (untilTimestamp != null) {
-                            if (relTimestamp > Long.parseLong(untilTimestamp)) {
-                                continue;
+                            long relTimestamp = Long.parseLong(rel.getProperty("timestamp").toString());
+
+                            if (untilTimestamp != null) {
+                                if (relTimestamp > Long.parseLong(untilTimestamp)) {
+                                    continue;
+                                }
                             }
-                        }
 
-                        if (sinceTimestamp != null) {
-                            if (relTimestamp < Long.parseLong(sinceTimestamp)) {
-                                continue;
+                            if (sinceTimestamp != null) {
+                                if (relTimestamp < Long.parseLong(sinceTimestamp)) {
+                                    continue;
+                                }
                             }
+
+                            String id_user = node.getProperty("node_id").toString();
+                            String id_bibrec = rel.getEndNode().getProperty("node_id").toString();
+
+
+                            if (removeDuplicates) {
+
+                                if (!added.containsKey(id_user + id_bibrec)) {
+                                    userItemRelationships.add(
+                                            new UserItemRelationship(
+                                                    id_user, id_bibrec,
+                                                    rel.getType().name(),
+                                                    rel.getProperty("timestamp").toString(),
+                                                    currentDepth));
+                                    added.put(id_user + id_bibrec, true);
+                                }
+
+                            } else {
+
+                                userItemRelationships.add(
+                                        new UserItemRelationship(
+                                                id_user, id_bibrec,
+                                                rel.getType().name(),
+                                                rel.getProperty("timestamp").toString(),
+                                                currentDepth));
+                            }
+
+                        } catch (NotFoundException e) {
+                            System.err.println("Could not find a relationship for user node " + node + ", it's probably because it's deleted, we just skip it!");
                         }
 
-                        String id_user = node.getProperty("node_id").toString();
-                        String id_bibrec = rel.getEndNode().getProperty("node_id").toString();
-
-
-                        if (!added.containsKey(id_user + id_bibrec)) {
-                            userItemRelationships.add(
-                                    new UserItemRelationship(
-                                            id_user, id_bibrec,
-                                            rel.getType().name(),
-                                            rel.getProperty("timestamp").toString(),
-                                            currentDepth));
-                            added.put(id_user + id_bibrec, true);
-                        }
                     }
                 }
             }
@@ -122,8 +241,10 @@ public class UserGraph {
 
     }
 
+    */
+
     public Map<String, Double> recommend(String userID,
-                                         String depth) {
+                                         String depth) throws ObelixNodeNotFoundException {
 
         return recommend(userID, depth, null, null, null);
     }
@@ -132,215 +253,80 @@ public class UserGraph {
                                          String depth,
                                          String sinceTimestamp,
                                          String untilTimestamp,
-                                         String importanceFactor) {
-
-        int importanceFactorInteger = 1;
-
-        if (importanceFactor != null) {
-            importanceFactorInteger = Integer.parseInt(importanceFactor);
-        }
-
-        Map<String, Double> result = new HashMap<>();
-        Map<String, Double> normalizedResult = new HashMap<>();
-
-        List<UserItemRelationship> userItemRelationships = null;
-
-        boolean errorFetchingRelationships = false;
-
-        while (userItemRelationships == null) {
-            try {
-                userItemRelationships = relationships(
-                        userID, depth, sinceTimestamp, untilTimestamp);
-
-            } catch (NotFoundException e) {
-                errorFetchingRelationships = true;
-                System.err.println("Relationships not found, we have to try again! (" + e.getMessage() + ")");
-                System.err.println(userID + "-" + depth + "-" + sinceTimestamp + "-" + untilTimestamp + "-" + importanceFactor);
-            }
-        }
-
-        if (errorFetchingRelationships) {
-            System.err.println("Fetching relationships OK now for:");
-            System.err.println(userID + "-" + depth + "-" + sinceTimestamp + "-" + untilTimestamp + "-" + importanceFactor);
-        }
-
-        double maxScore = 0.0;
-
-        for (UserItemRelationship it : userItemRelationships) {
-            result.putIfAbsent(it.itemid, 0.0);
-            result.put(it.itemid, result.get(it.itemid) + it.getImportanceFactor(importanceFactorInteger));
-
-            if (result.get(it.itemid) > maxScore) {
-                maxScore = result.get(it.itemid);
-            }
-        }
-
-        for (Map.Entry<String, Double> entry : result.entrySet()) {
-
-            double normalizedScore = entry.getValue() / maxScore;
-
-            // Threshold value for including the recommendation, at least 0.1 = 10%
-            if(normalizedScore > 0.1) {
-                normalizedResult.put(entry.getKey(), entry.getValue() / maxScore);
-            }
-
-        }
-
-        return Helpers.sortedHashMap(normalizedResult, true);
-
-    }
-
-
-    /*
-    public Map<String, Double> recommend(String userID,
-                                         String depth,
-                                         String sinceTimestamp,
-                                         String untilTimestmap) {
-
-        Map<String, Double> result = new HashMap<>();
+                                         String importanceFactor) throws ObelixNodeNotFoundException {
 
         try (Transaction tx = graphdb.beginTx()) {
-            Node user = getOrCreateUserNode(graphdb, userID);
 
-            for (Node node : graphdb.traversalDescription()
-                    .depthFirst()
-                    .evaluator(Evaluators.toDepth(Integer.parseInt(depth)))
-                            //.evaluator(Evaluators.excludeStartPosition())
-                            //.evaluator(Evaluators.includeWhereLastRelationshipTypeIs(RelTypes.DOWNLOADED))
-                    //.evaluator(new TimeStampFilterEvaluator(sinceTimestamp, untilTimestmap))
-                    .traverse(user).nodes()) {
+            int importanceFactorInteger = 1;
 
-                if (node.hasLabel(UserGraph.LABEL)) {
-                    for (Relationship rel : node.getRelationships()) {
-
-                        String id_user = node.getProperty("node_id").toString();
-                        String id_bibrec = rel.getEndNode().getProperty("node_id").toString();
-
-                        result.putIfAbsent(id_bibrec, 0.0);
-                        result.put(id_bibrec, result.get(id_bibrec) + 1.0);
-
-                    }
-                }
+            if (importanceFactor != null) {
+                importanceFactorInteger = Integer.parseInt(importanceFactor);
             }
-
-            tx.success();
-
-        }
-
-        return Helpers.sortedHashMap(result, true);
-
-    }*/
-
-     /*
-    public Map<String, Double> getRecommendedItemsForUser(String userID) {
-
-        try (Transaction tx = graphdb.beginTx()) {
-            System.out.println(userID);
-            Node user = getOrCreateUserNode(graphdb, Long.parseLong(userID));
 
             Map<String, Double> result = new HashMap<>();
+            Map<String, Double> normalizedResult = new HashMap<>();
 
-            List<Integer> downloads = new ArrayList<>();
-            Set<Integer> users = new HashSet<>();
+            List<UserItemRelationship> userItemRelationships = null;
 
-            int depth = 2;
+            boolean errorFetchingRelationships = false;
 
-            String output = "";
-            for (Path position : graphdb.traversalDescription()
-                    .breadthFirst()
-                    .relationships(NeoHelpers.RelTypes.DOWNLOADED)
-                            //.evaluator(Evaluators.fromDepth(3))
-                    .evaluator(Evaluators.toDepth(depth))
-                    .traverse(user)) {
-                output += position + "\n";
+            while (userItemRelationships == null) {
+                try {
+                    userItemRelationships = relationships(userID, depth, sinceTimestamp, untilTimestamp);
 
-                int c = 0;
-
-                for (Node node : position.nodes()) {
-                    c += 1;
-                    if (node.hasLabel(LABEL_ITEM)) {
-                        String key = node.getProperty("id_bibrec").toString();
-                        result.putIfAbsent(key, 0.0);
-                        result.put(key, result.get(key) + getLevelScore(position.length(), depth));
-
-                    }
-
-                    if (node.hasLabel(LABEL_USER)) {
-                        users.add(Integer.parseInt(node.getProperty("id_user").toString()));
-                    }
+                } catch (NotFoundException e) {
+                    errorFetchingRelationships = true;
+                    System.err.println("Relationships not found, we have to try again! (" + e.getMessage() + ")");
+                    System.err.println(userID + "-" + depth + "-" + sinceTimestamp + "-" + untilTimestamp + "-" + importanceFactor);
                 }
+            }
 
-                System.out.println(c);
 
+            if (errorFetchingRelationships) {
+                System.err.println("Fetching relationships OK now for:");
+                System.err.println(userID + "-" + depth + "-" + sinceTimestamp + "-" + untilTimestamp + "-" + importanceFactor);
             }
 
             double maxScore = 0.0;
+            double score = 0.0;
 
-            for (String key : result.keySet()) {
-                result.put(key, Math.log(result.get(key)));
-                if (result.get(key) > maxScore) {
-                    maxScore = result.get(key);
+            int maxRecommendatins = 100;
+            int recommendationsCount = 0;
+
+
+            for (UserItemRelationship it : userItemRelationships) {
+
+                String itemID = it.itemid;
+
+                result.putIfAbsent(itemID, 0.0);
+
+                score = result.get(itemID) + 1 + it.getImportanceFactor(importanceFactorInteger);
+
+                score = Math.log(score);
+
+                result.put(itemID, score);
+
+                if (score > maxScore) {
+                    maxScore = score;
                 }
+
             }
 
-            for (String key : result.keySet()) {
-                result.put(key, result.get(key) / maxScore);
+            for (Map.Entry<String, Double> entry : result.entrySet()) {
+
+                double normalizedScore = entry.getValue() / maxScore;
+
+                //System.out.println(entry.getKey() + " - " + entry.getValue());
+                // Threshold value for including the recommendation, at least 0.1 = 10%
+                if (normalizedScore > 0.15) {
+                    normalizedResult.put(entry.getKey(), entry.getValue() / maxScore);
+                }
+
             }
 
-            System.out.println("Max score: " + maxScore);
-            System.out.println("Number of users: " + users.size());
-
-            //Collections.sort(downloads);
-
-            //System.out.println(downloads);
-
-            //System.out.println(output);
-
-            return result;
+            tx.success();
+            return Helpers.sortedHashMap(normalizedResult, true);
 
         }
     }
-
-    */
-
-
-     /*
-    public boolean cleanRelationshipForAllUsers() {
-        try (Transaction tx = graphdb.beginTx()) {
-
-            ResourceIterable<Node> users = GlobalGraphOperations.at(graphdb).getAllNodesWithLabel(LABEL_USER);
-            tx.success();
-
-            for(Node user : users) {
-                deletedAndMadeSpaceForNewRelationship(user, Long.parseLong("0"));
-            }
-
-        }
-
-        return true;
-    }
-
-    public boolean cleanRelationshipForUser(String userid) {
-
-        try (Transaction tx = graphdb.beginTx()) {
-
-            Node user = getOrCreateUserNode(this.graphdb, Long.parseLong(userid));
-            tx.success();
-
-            int count = 0;
-
-            for(Relationship rel : user.getRelationships()) {
-                count += 1;
-            }
-
-            deletedAndMadeSpaceForNewRelationship(user, Long.parseLong("1418776946000"));
-
-            System.out.println(count);
-
-        }
-
-        return true;
-
-    }*/
-
 }

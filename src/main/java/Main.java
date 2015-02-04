@@ -2,8 +2,13 @@ import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.factory.GraphDatabaseFactory;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class Main {
+    private final static Logger LOGGER = Logger.getLogger(Main.class.getName());
 
     private static void registerShutdownHook(final GraphDatabaseService graphDb) {
         Runtime.getRuntime().addShutdownHook(new Thread() {
@@ -62,13 +67,59 @@ public class Main {
             carg += 1;
         }
 
-        System.out.println("Starting Obelix");
-        System.out.println("all args: " + Arrays.toString(args));
-        System.out.println("--neo4jstore: " + neoLocation);
-        System.out.println("--max-relationships: " + maxRelationships);
-        System.out.println("--workers: " + workers);
-        System.out.println("--redis-queue-name: " + redisQueueName);
-        System.out.println("--web-port: " + webPort);
+        boolean batchImportAll = false;
+
+        carg = 0;
+        for (String arg : args) {
+            if (arg.equals("--batch-import-all")) {
+                batchImportAll = true;
+            }
+            carg += 1;
+        }
+        boolean buildForAllUsersOnStartup = false;
+
+        carg = 0;
+        for (String arg : args) {
+            if (arg.equals("--build-cache-for-all-users-on-startup")) {
+                buildForAllUsersOnStartup = true;
+            }
+            carg += 1;
+        }
+
+        String recommendationDepth = "4";
+        carg = 0;
+        for (String arg : args) {
+            if (arg.equals("--recommendation-depth")) {
+                try {
+                    int depth = Integer.parseInt(args[carg+1]);
+
+                    if(depth<0 || depth > 10) {
+                        throw new NumberFormatException();
+                    }
+
+                    recommendationDepth = args[carg+1];
+
+                } catch (NumberFormatException e) {
+                    System.err.println("Wrong format for --recommendation-depth option, use a number from 0-10");
+                }
+            }
+            carg += 1;
+        }
+
+        LOGGER.log(Level.INFO, "Starting Obelix");
+        LOGGER.log(Level.INFO, "all args: " + Arrays.toString(args));
+        LOGGER.log(Level.INFO, "--neo4jstore: " + neoLocation);
+        LOGGER.log(Level.INFO, "--max-relationships: " + maxRelationships);
+        LOGGER.log(Level.INFO, "--workers: " + workers);
+        LOGGER.log(Level.INFO, "--redis-queue-name: " + redisQueueName);
+        LOGGER.log(Level.INFO, "--web-port: " + webPort);
+
+        if(batchImportAll) {
+            LOGGER.log(Level.INFO, "Starting batch import of all");
+            BatchImport.run(neoLocation, redisQueueName);
+            LOGGER.log(Level.INFO, "Done importing everything! woho!");
+            System.exit(0);
+        }
 
         GraphDatabaseService graphDb = new GraphDatabaseFactory()
                 .newEmbeddedDatabaseBuilder(neoLocation)
@@ -77,12 +128,44 @@ public class Main {
         registerShutdownHook(graphDb);
 
         RedisQueueManager redisQueueManager = new RedisQueueManager(redisQueueName);
+        RedisQueueManager usersCacheQueue= new RedisQueueManager("cache::users");
 
-        for(int i=1; i<=workers;i++) {
-            (new Thread(new NeoFeeder(graphDb, maxRelationships, redisQueueManager, i))).start();
-        }
+        // Warm up neo4j cache
+        /*
+        try (Transaction tx = graphDb.beginTx()) {
+            for (Node n : GlobalGraphOperations.at(graphDb).getAllNodes()) {
+                n.getPropertyKeys();
+                for (Relationship relationship : n.getRelationships()) {
+                    Node start = relationship.getStartNode();
+                }
+            }
+            tx.success();
+            System.out.println("Neo4j is warmed up!");
+        }*/
 
-        (new Thread(new WebInterface(graphDb, webPort))).start();
+        (new Thread(new NeoFeeder(graphDb, maxRelationships,
+                redisQueueManager, usersCacheQueue, 1))).start();
 
+        (new Thread(new WebInterface(graphDb, webPort, recommendationDepth, clientSettings()))).start();
+
+        (new Thread(new CacheBuilder(graphDb,
+                usersCacheQueue, buildForAllUsersOnStartup, recommendationDepth, maxRelationships,
+                clientSettings()))).start();
+
+    }
+
+    public static Map<String, String> clientSettings() {
+        Map<String, String> result = new HashMap<>();
+        result.put("redis_prefix", "obelix::");
+        result.put("recommendations_impact", "0");
+        result.put("method_switch_limit", "20");
+        result.put("score_lower_limit", "0.20");
+        result.put("score_upper_limit", "1");
+        result.put("score_min_limit", "10");
+        result.put("score_min_multiply", "4");
+        result.put("score_one_result", "1.0");
+        result.put("redis_timeout_recommendations_cache", "30");
+        result.put("redis_timeout_search_result", "3000");
+        return result;
     }
 }
