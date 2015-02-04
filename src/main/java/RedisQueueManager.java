@@ -3,6 +3,8 @@ import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 import redis.clients.jedis.exceptions.JedisConnectionException;
 
+import java.util.List;
+
 public class RedisQueueManager {
 
     JedisPool pool;
@@ -20,7 +22,7 @@ public class RedisQueueManager {
         config.setTestOnBorrow(true);
         config.setTestOnReturn(true);
         config.setTestWhileIdle(true);
-        this.pool = new JedisPool(config, "localhost", 6379);
+        this.pool = new JedisPool(config, "localhost", 6379, 500000);
     }
 
     private synchronized void ensureConnected() {
@@ -46,6 +48,14 @@ public class RedisQueueManager {
 
         try (Jedis jedis = pool.getResource()) {
             jedis.rpush(this.prefix + this.queueName, entry);
+        }
+    }
+
+    public synchronized List<String> lrange() {
+        ensureConnected();
+
+        try (Jedis jedis = pool.getResource()) {
+            return jedis.lrange(this.prefix + this.queueName, 0, jedis.llen(this.prefix + this.queueName));
         }
     }
 

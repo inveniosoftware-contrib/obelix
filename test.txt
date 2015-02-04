@@ -1,0 +1,8 @@
+Document retrieval is a challenging task especially for digital repositories containing millions of records.
+One may identify two tasks for this purpose: one is to find text information of interest (matching a user query) out of a large collection of documents, another is to display the results in a reasonable amount of time in a satisfactory order so that the user finds easily what (s)he is looking for. Currently, in addition to sorting methods based on date, author, title, and other metadata fields, several ranking methods are implemented within Invenio such as word similarity (towards the query) or citations (how many times a document is cited by others) which all result in a specific score for the records. However, a user survey performed in 2011 shows us that the users are not satisfied by the default ordering in CDS, they actually prefer to use google to find documents in CDS, leaving CDS as a platform mainly for storing documents, rather that the goal which is to be the platform for searching and exploring documents from CERN.
+
+The needs analysis are based on the user survey from 2011 and interviews with both librerians and real users in 2014. The user survey is 3 years old and should therefore be considered carefully, while the recent interviews tells us more about the status quoe. 
+
+
+ it would be interesting to take into account the access frequency of a document in the ranking. Indeed, if a record is famous (e.g. downloaded a lot), it means that it is important, and that its fame could contribute positively to its ranking score.
+

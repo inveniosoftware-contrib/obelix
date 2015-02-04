@@ -40,7 +40,7 @@ public class NeoFeeder implements Runnable {
         while (true) {
 
             try {
-                Thread.sleep(100);
+                Thread.sleep(3000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -59,7 +59,10 @@ public class NeoFeeder implements Runnable {
 
                         // Tell Obelix to rebuild the cache for the user in this event!
                         // This will maintain the caches for all active users
-                        usersCacheQueue.rpush(event.getUser());
+
+                        if(!usersCacheQueue.lrange().contains(event.getUser())) {
+                            usersCacheQueue.rpush(event.getUser());
+                        }
 
                         tx.success();
 

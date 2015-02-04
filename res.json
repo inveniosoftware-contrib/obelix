@@ -1,0 +1,51 @@
+{
+  "user_info": {
+    "uid": 1,
+    "agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36",
+    "precached_viewclaimlink": false,
+    "session": "6752bffced90b9e05083799bb3dba08e",
+    "precached_useadmin": true,
+    "group": [
+      "testhc",
+      "Admingroup"
+    ],
+    "guest": "0",
+    "precached_usepaperattribution": true,
+    "precached_usepaperclaim": true,
+    "precached_viewsubmissions": true,
+    "precached_usegroups": true,
+    "email": "tech@tind.io",
+    "precached_usealerts": true,
+    "precached_usestats": true,
+    "precached_usemessages": true,
+    "referer": "https://sub.tind.io/search?sf=&so=d&rg=10&sc=1&c=sub&of=hb&ln=en&p=la&f=&action_search=Search",
+    "precached_canseehiddenmarctags": true,
+    "nickname": "admin",
+    "precached_sendcomments": true,
+    "login_method": "Local",
+    "precached_permitted_restricted_collections": [
+      "Author Works for Approval",
+      "Conference Materials for Approval",
+      "Reports for Approval",
+      "Study Materials for Approval",
+      "Theses for Approval",
+      "Administrativ Reports"
+    ],
+    "precached_useapprove": true,
+    "language": "en",
+    "precached_useloans": true,
+    "uri": "/search?ln=en&sc=1&c=sub&p=labeling",
+    "precached_usebaskets": true,
+    "remote_ip": "81.28.198.9",
+    "remote_host": ""
+  },
+  "result": [[84]],
+  "colls_to_search": [
+    "Articles",
+    "Study Materials",
+    "Conference Materials",
+    "Reports",
+    "Pictures",
+    "Administrativ Reports"
+  ]
+}
