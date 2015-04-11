@@ -1,7 +1,14 @@
 package graph;
 
 
-import org.neo4j.graphdb.*;
+import org.neo4j.graphdb.DynamicLabel;
+import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphdb.Label;
+import org.neo4j.graphdb.Node;
+import org.neo4j.graphdb.NotFoundException;
+import org.neo4j.graphdb.Path;
+import org.neo4j.graphdb.Relationship;
+import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.traversal.Evaluators;
 import org.neo4j.graphdb.traversal.Uniqueness;
 
@@ -10,7 +17,9 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import static events.NeoHelpers.*;
+import static events.NeoHelpers.getAllNodes;
+import static events.NeoHelpers.getUserNode;
+import static events.NeoHelpers.makeSureTheUserDoesNotExceedMaxRelationshipsLimit;
 
 public class UserGraph {
 
