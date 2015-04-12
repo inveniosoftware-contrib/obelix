@@ -1,2 +1,6 @@
 target
 graph.db
+
+# Sphinx documentation
+docs/_build/
+*.iml
