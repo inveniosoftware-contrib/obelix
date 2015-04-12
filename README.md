@@ -1,1 +1,1 @@
-README Obelix
+README
