@@ -1,23 +1,20 @@
-.. Obelix documentation master file, created by
-   sphinx-quickstart on Mon Apr 13 00:43:05 2015.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+Obelix |frigg| |coverage| |version|
+=======================================================
 
-Welcome to Obelix's documentation!
-==================================
+Obelix Personalization Search Engine
 
-Contents:
+.. include:: quickstart.rst
 
 .. toctree::
    :maxdepth: 2
 
-test
+    Quickstart <quickstart>
+    How it works <how-it-works>
 
+.. |frigg| image:: https://ci.frigg.io/badges/frecar/obelix/
+    :target: https://ci.frigg.io/frecar/obelix/last/
+    :alt: Build
 
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
-
+.. |coverage| image:: https://ci.frigg.io/badges/coverage/frecar/obelix/
+    :target: https://ci.frigg.io/frecar/obelix/last/
+    :alt: Coverage
