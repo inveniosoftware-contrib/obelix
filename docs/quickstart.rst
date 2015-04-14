@@ -8,14 +8,17 @@ The installation is as simple as downloading the jar file
 Note: This jar-file require java8 to be installed.
 
 .. code-block:: bash
+
     wget http://obelix.io/obelix.jar
 
 
 Dependencies
 ------------
 
-Obelix require redis to run on the host, where redis run will beconfigurable later.
+Obelix require the following software to be installed
 
+ - Redis
+ - Java8
 
 Usage
 -----

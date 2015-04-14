@@ -1,15 +1,18 @@
-Obelix |frigg| |coverage| |version|
+Obelix |frigg| |coverage|
 =======================================================
 
 Obelix Personalization Search Engine
-
-.. include:: quickstart.rst
 
 .. toctree::
    :maxdepth: 2
 
     Quickstart <quickstart>
     How it works <how-it-works>
+
+
+.. include:: quickstart.rst
+
+
 
 .. |frigg| image:: https://ci.frigg.io/badges/frecar/obelix/
     :target: https://ci.frigg.io/frecar/obelix/last/
