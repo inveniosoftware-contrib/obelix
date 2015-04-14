@@ -53,3 +53,56 @@ However, for most projects it is required to configure more options.
 
     # Tell Obelix to rebuild all recommendations
     --build-cache-for-all-users-on-startup
+
+Running Obelix as a Daemon (background service) on Ubuntu 14.04
+--------------------------
+In a production environment it is wise to run Obelix as a background service.
+You can do this easily by using supervisor.
+
+To set up supervisor, first you need to install the package
+
+.. code-block:: bash
+
+    sudo apt-get install supervisor
+
+
+Then you need to create a configuration file named /etc/supervisor/conf.d/obelix.conf with the following content
+
+.. code-block:: bash
+
+    [program:obelix]
+    user = someUserWithAccessToTheDirectory
+    autostart = true
+    autorestart = true
+    command = java -jar /mnt/obelix/obelix.jar --option1 value1 --option2 value2...
+    stdout_logfile = /var/log/obelix.log
+    stderr_logfile = /var/log/obelix.error.log
+
+
+Then you simply restart the supervisor service
+
+.. code-block:: bash
+
+    sudo service supervisor restart
+
+
+Then you can tail the log to see that Obelix is running
+
+
+.. code-block:: bash
+
+    sudo tail -f /var/log/obelix.log
+    sudo tail -f /var/log/obelix.error.log
+
+
+Recommended JVM settings
+------------------------
+For Obelix to perform well, it is recommended to enable the ``-XX:+UseConcMarkSweepGC`` option on the JVM.
+
+It is also recommended to set your ``-Xmx`` and ``Xms`` settings to apropriate values for your host.
+
+An example of a configuration may be:
+
+.. code-block:: bash
+
+    java -Xmx5000m -Xms5000m -XX:+UseConcMarkSweepGC -jar /mnt/obelix/obelix.jar --neo4jstore /mnt/obelix/graph.db
