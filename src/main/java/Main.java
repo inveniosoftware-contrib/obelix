@@ -1,5 +1,11 @@
+import obelix.ObelixBatchImport;
+import obelix.ObelixCache;
+import obelix.ObelixFeeder;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.factory.GraphDatabaseFactory;
+import queue.impl.RedisQueue;
+import queue.interfaces.ObelixQueue;
+import web.ObelixWebServer;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -29,7 +35,7 @@ public class Main {
 
         int carg = 0;
         for (String arg : args) {
-            if (arg.equals("--neo4jstore")) {
+            if (arg.equals("--neo4jStore")) {
                 neoLocation = args[carg + 1];
             }
             carg += 1;
@@ -108,7 +114,7 @@ public class Main {
 
         LOGGER.log(Level.INFO, "Starting Obelix");
         LOGGER.log(Level.INFO, "all args: " + Arrays.toString(args));
-        LOGGER.log(Level.INFO, "--neo4jstore: " + neoLocation);
+        LOGGER.log(Level.INFO, "--neo4jStore: " + neoLocation);
         LOGGER.log(Level.INFO, "--max-relationships: " + maxRelationships);
         LOGGER.log(Level.INFO, "--workers: " + workers);
         LOGGER.log(Level.INFO, "--redis-queue-name: " + redisQueueName);
@@ -116,7 +122,7 @@ public class Main {
 
         if(batchImportAll) {
             LOGGER.log(Level.INFO, "Starting batch import of all");
-            BatchImport.run(neoLocation, redisQueueName);
+            ObelixBatchImport.run(neoLocation, redisQueueName);
             LOGGER.log(Level.INFO, "Done importing everything! woho!");
             System.exit(0);
         }
@@ -127,8 +133,8 @@ public class Main {
 
         registerShutdownHook(graphDb);
 
-        RedisQueueManager redisQueueManager = new RedisQueueManager(redisQueueName);
-        RedisQueueManager usersCacheQueue= new RedisQueueManager("cache::users");
+        ObelixQueue redisQueueManager = new RedisQueue(redisQueueName);
+        ObelixQueue usersCacheQueue= new RedisQueue("cache::users");
 
         // Warm up neo4j cache
         /*
@@ -143,12 +149,12 @@ public class Main {
             System.out.println("Neo4j is warmed up!");
         }*/
 
-        (new Thread(new NeoFeeder(graphDb, maxRelationships,
+        (new Thread(new ObelixFeeder(graphDb, maxRelationships,
                 redisQueueManager, usersCacheQueue, 1))).start();
 
-        (new Thread(new WebInterface(graphDb, webPort, recommendationDepth, clientSettings()))).start();
+        (new Thread(new ObelixWebServer(graphDb, webPort, recommendationDepth, clientSettings()))).start();
 
-        (new Thread(new CacheBuilder(graphDb,
+        (new Thread(new ObelixCache(graphDb,
                 usersCacheQueue, buildForAllUsersOnStartup, recommendationDepth, maxRelationships,
                 clientSettings()))).start();
 

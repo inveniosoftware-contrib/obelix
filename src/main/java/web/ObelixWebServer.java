@@ -1,22 +1,29 @@
+package web;
+
 import graph.ItemGraph;
-import graph.ObelixNodeNotFoundException;
 import graph.RelationGraph;
 import graph.UserGraph;
+import graph.exceptions.ObelixNodeNotFoundException;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.neo4j.graphdb.DynamicLabel;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import redis.clients.jedis.Jedis;
+import utils.JsonTransformer;
 
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static spark.Spark.*;
+import static spark.Spark.exception;
+import static spark.Spark.get;
+import static spark.Spark.post;
+import static spark.SparkBase.port;
 
-public class WebInterface implements Runnable {
-    private final static Logger LOGGER = Logger.getLogger(WebInterface.class.getName());
+public class ObelixWebServer implements Runnable {
+
+    private final static Logger LOGGER = Logger.getLogger(ObelixWebServer.class.getName());
 
     public static final Label LABEL_ITEM = DynamicLabel.label("Item");
     public static final Label LABEL_USER = DynamicLabel.label("User");
@@ -29,8 +36,8 @@ public class WebInterface implements Runnable {
     int webPort;
     String recommendationDepth;
 
-    public WebInterface(GraphDatabaseService graphdb, int webPort, String recommendationDepth,
-                        Map<String, String> clientSettings) {
+    public ObelixWebServer(GraphDatabaseService graphdb, int webPort, String recommendationDepth,
+                           Map<String, String> clientSettings)  {
 
         this.graphDb = graphdb;
         this.userGraph = new UserGraph(graphdb);
@@ -43,8 +50,8 @@ public class WebInterface implements Runnable {
 
     public void run() {
         port(this.webPort);
-        WebInterfaceAuth.enableCORS("*", "*", "*");
-        WebInterfaceAuth.requireValidToken();
+        ObelixWebAuth.enableCORS("*", "*", "*");
+        ObelixWebAuth.requireValidToken();
 
         // All users, items, relationships
 
@@ -132,4 +139,5 @@ public class WebInterface implements Runnable {
     private Map<String, String> settings() {
         return this.clientSettings;
     }
+
 }

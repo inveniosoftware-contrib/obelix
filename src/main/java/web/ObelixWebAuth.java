@@ -1,10 +1,12 @@
+package web;
+
 import java.util.HashMap;
 import java.util.Map;
 
 import static spark.Spark.before;
 import static spark.Spark.halt;
 
-public class WebInterfaceAuth {
+public class ObelixWebAuth {
 
     public static void enableCORS(final String origin, final String methods, final String headers) {
         before((request, response) -> {
@@ -37,6 +39,4 @@ public class WebInterfaceAuth {
             }
         });
     }
-
-
 }

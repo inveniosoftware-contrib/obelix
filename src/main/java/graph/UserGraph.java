@@ -1,6 +1,7 @@
 package graph;
 
 
+import graph.exceptions.ObelixNodeNotFoundException;
 import org.neo4j.graphdb.DynamicLabel;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
@@ -151,106 +152,6 @@ public class UserGraph {
             return userItemRelationships;
         }
     }
-
-    /*
-    public List<UserItemRelationship> relationships(String userID, String depth,
-                                                    String sinceTimestamp, String untilTimestamp,
-                                                    boolean removeDuplicates)
-
-            throws ObelixNodeNotFoundException {
-
-        try (Transaction tx = graphdb.beginTx()) {
-
-            List<UserItemRelationship> userItemRelationships = new LinkedList<>();
-
-            int currentDepth = 0;
-            Label lastSeenLabel = null;
-
-            Node user = getUserNode(graphdb, userID);
-
-            Map<String, Boolean> added = new HashMap<>();
-
-            for ( Node node : graphdb.traversalDescription()
-                    .breadthFirst()
-                    .evaluator( Evaluators.toDepth(Integer.parseInt(depth)) )
-                    .traverse( user ).nodes() )
-            {
-
-                //Node node = position.startNode();
-
-                Label currentLabel = node.getLabels().iterator().next();
-
-                if (lastSeenLabel == null) {
-                    lastSeenLabel = currentLabel;
-                }
-
-                if (currentLabel.equals(UserGraph.LABEL) && lastSeenLabel.equals(ItemGraph.LABEL)) {
-                    currentDepth += 1;
-                }
-
-                lastSeenLabel = currentLabel;
-
-                if (node.hasLabel(UserGraph.LABEL)) {
-                    for (Relationship rel : node.getRelationships()) {
-
-                        try {
-
-                            long relTimestamp = Long.parseLong(rel.getProperty("timestamp").toString());
-
-                            if (untilTimestamp != null) {
-                                if (relTimestamp > Long.parseLong(untilTimestamp)) {
-                                    continue;
-                                }
-                            }
-
-                            if (sinceTimestamp != null) {
-                                if (relTimestamp < Long.parseLong(sinceTimestamp)) {
-                                    continue;
-                                }
-                            }
-
-                            String id_user = node.getProperty("node_id").toString();
-                            String id_bibrec = rel.getEndNode().getProperty("node_id").toString();
-
-
-                            if (removeDuplicates) {
-
-                                if (!added.containsKey(id_user + id_bibrec)) {
-                                    userItemRelationships.add(
-                                            new UserItemRelationship(
-                                                    id_user, id_bibrec,
-                                                    rel.getType().name(),
-                                                    rel.getProperty("timestamp").toString(),
-                                                    currentDepth));
-                                    added.put(id_user + id_bibrec, true);
-                                }
-
-                            } else {
-
-                                userItemRelationships.add(
-                                        new UserItemRelationship(
-                                                id_user, id_bibrec,
-                                                rel.getType().name(),
-                                                rel.getProperty("timestamp").toString(),
-                                                currentDepth));
-                            }
-
-                        } catch (NotFoundException e) {
-                            System.err.println("Could not find a relationship for user node " + node + ", it's probably because it's deleted, we just skip it!");
-                        }
-
-                    }
-                }
-            }
-
-            tx.success();
-
-            return userItemRelationships;
-        }
-
-    }
-
-    */
 
     public Map<String, Double> recommend(String userID,
                                          String depth) throws ObelixNodeNotFoundException {

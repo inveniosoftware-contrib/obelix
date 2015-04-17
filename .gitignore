@@ -4,3 +4,4 @@ graph.db
 # Sphinx documentation
 docs/_build/
 *.iml
+.DS_Store

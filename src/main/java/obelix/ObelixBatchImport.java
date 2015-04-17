@@ -1,3 +1,5 @@
+package obelix;
+
 import events.EventFactory;
 import events.NeoEvent;
 import events.NeoHelpers;
@@ -10,15 +12,18 @@ import org.neo4j.unsafe.batchinsert.BatchInserter;
 import org.neo4j.unsafe.batchinsert.BatchInserterIndex;
 import org.neo4j.unsafe.batchinsert.BatchInserterIndexProvider;
 import org.neo4j.unsafe.batchinsert.BatchInserters;
+import queue.impl.RedisQueue;
+import queue.interfaces.ObelixQueue;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class BatchImport {
 
-    private final static Logger LOGGER = Logger.getLogger(BatchImport.class.getName());
+public class ObelixBatchImport {
+
+    private final static Logger LOGGER = Logger.getLogger(ObelixBatchImport.class.getName());
 
     private static void registerShutdownHook(final BatchInserter graphDb, final BatchInserterIndexProvider indexProvider) {
         Runtime.getRuntime().addShutdownHook(new Thread() {
@@ -101,7 +106,7 @@ public class BatchImport {
         long userNodeID;
         long itemNode;
 
-        RedisQueueManager redisQueueManager = new RedisQueueManager(redisQueueName);
+        ObelixQueue redisQueueManager = new RedisQueue(redisQueueName);
 
         Label userLabel = DynamicLabel.label("User");
         Label itemLabel = DynamicLabel.label("Item");
@@ -173,6 +178,7 @@ public class BatchImport {
     }
 
     public static void main(String... args) {
-        BatchImport.run("graph.db", "logentries");
+        ObelixBatchImport.run("graph.db", "logentries");
     }
+
 }

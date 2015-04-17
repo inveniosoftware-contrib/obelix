@@ -1,3 +1,5 @@
+package obelix;
+
 import events.EventFactory;
 import events.NeoEvent;
 import org.neo4j.cypher.EntityNotFoundException;
@@ -6,23 +8,24 @@ import org.neo4j.graphdb.NotFoundException;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.TransactionFailureException;
 import org.neo4j.kernel.DeadlockDetectedException;
+import queue.interfaces.ObelixQueue;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class NeoFeeder implements Runnable {
+public class ObelixFeeder implements Runnable {
 
-    private final static Logger LOGGER = Logger.getLogger(NeoFeeder.class.getName());
+    private final static Logger LOGGER = Logger.getLogger(ObelixFeeder.class.getName());
 
     GraphDatabaseService graphDb;
-    RedisQueueManager redisQueueManager;
-    RedisQueueManager usersCacheQueue;
+    ObelixQueue redisQueueManager;
+    ObelixQueue usersCacheQueue;
     int maxRelationships;
     int workerID;
 
-    public NeoFeeder(GraphDatabaseService graphDb, int maxRelationships,
-                     RedisQueueManager redisQueueManager,
-                     RedisQueueManager usersCacheQueue, int workerID) {
+    public ObelixFeeder(GraphDatabaseService graphDb, int maxRelationships,
+                     ObelixQueue redisQueueManager,
+                     ObelixQueue usersCacheQueue, int workerID) {
 
         this.redisQueueManager = redisQueueManager;
         this.usersCacheQueue = usersCacheQueue;
@@ -60,27 +63,27 @@ public class NeoFeeder implements Runnable {
                         // Tell Obelix to rebuild the cache for the user in this event!
                         // This will maintain the caches for all active users
 
-                        if(!usersCacheQueue.lrange().contains(event.getUser())) {
-                            usersCacheQueue.rpush(event.getUser());
+                        if(!usersCacheQueue.getAll().contains(event.getUser())) {
+                            usersCacheQueue.push(event.getUser());
                         }
 
                         tx.success();
 
                     } catch (TransactionFailureException e) {
                         LOGGER.log(Level.SEVERE, "TransactionFailureException, need to restart");
-                        redisQueueManager.rpush(result);
+                        redisQueueManager.push(result);
                         //System.exit(0);
                     } catch (NotFoundException e) {
                         LOGGER.log(Level.SEVERE, "Not found exception, pushing the element back on the queue. " + e.getMessage() + ": " + result);
-                        redisQueueManager.rpush(result);
+                        redisQueueManager.push(result);
                         continue;
                     } catch (DeadlockDetectedException e) {
                         LOGGER.log(Level.SEVERE, "Deadlock found exception, pushing the element back on the queue" + e.getMessage() + ": " + result);
-                        redisQueueManager.rpush(result);
+                        redisQueueManager.push(result);
                         continue;
                     } catch (EntityNotFoundException e) {
                         LOGGER.log(Level.SEVERE, "EntityNotFoundException, pushing the element back on the queue" + e.getMessage() + ": " + result);
-                        redisQueueManager.rpush(result);
+                        redisQueueManager.push(result);
                         continue;
                     }
 
@@ -93,4 +96,5 @@ public class NeoFeeder implements Runnable {
             }
         }
     }
+
 }
