@@ -1,4 +1,5 @@
 import junit.framework.TestCase;
+import obelix.Obelix;
 
 public class ObelixInitTest extends TestCase {
 
