@@ -5,12 +5,12 @@ import redis.clients.jedis.Jedis;
 import store.interfaces.ObelixStore;
 import utils.RedisPool;
 
-public class RedisStore implements ObelixStore {
+public class RedisObelixStore implements ObelixStore {
 
     private RedisPool redisPool;
     private String prefix;
 
-    public RedisStore() {
+    public RedisObelixStore() {
         this.prefix = "obelix:store:";
         this.redisPool = new RedisPool();
     }

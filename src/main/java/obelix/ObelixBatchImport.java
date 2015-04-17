@@ -12,7 +12,7 @@ import org.neo4j.unsafe.batchinsert.BatchInserter;
 import org.neo4j.unsafe.batchinsert.BatchInserterIndex;
 import org.neo4j.unsafe.batchinsert.BatchInserterIndexProvider;
 import org.neo4j.unsafe.batchinsert.BatchInserters;
-import queue.impl.RedisQueue;
+import queue.impl.RedisObelixQueue;
 import queue.interfaces.ObelixQueue;
 
 import java.util.HashMap;
@@ -106,7 +106,7 @@ public class ObelixBatchImport {
         long userNodeID;
         long itemNode;
 
-        ObelixQueue redisQueueManager = new RedisQueue(redisQueueName);
+        ObelixQueue redisQueueManager = new RedisObelixQueue(redisQueueName);
 
         Label userLabel = DynamicLabel.label("User");
         Label itemLabel = DynamicLabel.label("Item");

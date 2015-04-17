@@ -8,13 +8,13 @@ import utils.RedisPool;
 
 import java.util.List;
 
-public class RedisQueue implements ObelixQueue {
+public class RedisObelixQueue implements ObelixQueue {
 
     private JedisPool redisPool;
     private String queueName;
     private String prefix;
 
-    public RedisQueue(String queueName) {
+    public RedisObelixQueue(String queueName) {
         this.redisPool = new RedisPool().getRedis();
         this.queueName = queueName;
         this.prefix = "obelix:queue:";

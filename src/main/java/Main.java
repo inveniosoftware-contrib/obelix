@@ -3,7 +3,7 @@ import obelix.ObelixCache;
 import obelix.ObelixFeeder;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.factory.GraphDatabaseFactory;
-import queue.impl.RedisQueue;
+import queue.impl.RedisObelixQueue;
 import queue.interfaces.ObelixQueue;
 import web.ObelixWebServer;
 
@@ -133,8 +133,8 @@ public class Main {
 
         registerShutdownHook(graphDb);
 
-        ObelixQueue redisQueueManager = new RedisQueue(redisQueueName);
-        ObelixQueue usersCacheQueue= new RedisQueue("cache::users");
+        ObelixQueue redisQueueManager = new RedisObelixQueue(redisQueueName);
+        ObelixQueue usersCacheQueue= new RedisObelixQueue("cache::users");
 
         // Warm up neo4j cache
         /*

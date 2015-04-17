@@ -6,7 +6,7 @@ import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.TransactionFailureException;
 import queue.interfaces.ObelixQueue;
-import store.impl.RedisStore;
+import store.impl.RedisObelixStore;
 import store.interfaces.ObelixStore;
 import utils.JsonTransformer;
 
@@ -39,7 +39,7 @@ public class ObelixCache implements Runnable {
                         boolean buildForAllUsersOnStartup, String recommendationDepth,
                         int maxRelationships, Map<String, String> clientSettings) {
 
-        this.redisStoreManager = new RedisStore();
+        this.redisStoreManager = new RedisObelixStore();
         this.graphDb = graphDb;
         this.redisQueueManager = usersCacheQueue;
         this.userGraph = new UserGraph(graphDb);
