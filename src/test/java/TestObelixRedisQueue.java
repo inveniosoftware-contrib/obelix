@@ -28,12 +28,12 @@ public class TestObelixRedisQueue extends TestCase {
         ObelixQueue obelixQueue = new InternalObelixQueue();
         ObelixQueue redisObelixQueue = new RedisObelixQueue("randomQueueName" + random() * 10000);
 
-        for (int i = 0; i < 10000; i++) {
+        for (int i = 0; i < 10; i++) {
             obelixQueue.push("element" + i);
             redisObelixQueue.push("element" + i);
         }
 
-        for (int i = 0; i < 10000; i++) {
+        for (int i = 0; i < 10; i++) {
             assertEquals(obelixQueue.pop(), redisObelixQueue.pop());
         }
 
@@ -44,7 +44,7 @@ public class TestObelixRedisQueue extends TestCase {
         ObelixQueue obelixQueue = new InternalObelixQueue();
         ObelixQueue redisObelixQueue = new RedisObelixQueue("randomQueueName" + random() * 10000);
 
-        for (int i = 0; i < 10000; i++) {
+        for (int i = 0; i < 10; i++) {
             obelixQueue.push("element" + i);
             redisObelixQueue.push("element" + i);
         }

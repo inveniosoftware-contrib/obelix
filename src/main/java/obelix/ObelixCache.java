@@ -50,7 +50,7 @@ public class ObelixCache implements Runnable {
     }
 
     private void buildSettingsCache() {
-        redisStoreManager.set("settings", new JsonTransformer().render(this.clientSettings));
+        //redisStoreManager.set("settings", new JsonTransformer().render(this.clientSettings));
     }
 
     private void buildCacheForUser(String userid) {
@@ -61,9 +61,10 @@ public class ObelixCache implements Runnable {
         try {
             recommendations = this.userGraph.recommend(userid, this.recommendationDepth);
             JsonTransformer jsonTransformer = new JsonTransformer();
-            redisStoreManager.set(
+            /*redisStoreManager.set(
                     "recommendations::" + userid,
                     jsonTransformer.render(recommendations));
+                */
 
         } catch (ObelixNodeNotFoundException | NoSuchElementException | IllegalArgumentException e) {
             LOGGER.log(Level.WARNING, "Cache for user " + userid + " failed to build..! Can't find the user");

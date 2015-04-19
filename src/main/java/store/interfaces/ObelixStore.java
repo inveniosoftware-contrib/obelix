@@ -1,8 +1,10 @@
 package store.interfaces;
 
+import store.impl.ObelixStoreElement;
+
 public interface ObelixStore {
 
-    void set(String key, String value);
-    String get(String key);
+    void set(String key, ObelixStoreElement element);
+    ObelixStoreElement get(String key);
 
 }
