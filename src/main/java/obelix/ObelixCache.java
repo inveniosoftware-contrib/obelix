@@ -1,8 +1,15 @@
-import graph.ObelixNodeNotFoundException;
+package obelix;
+
 import graph.UserGraph;
+import graph.exceptions.ObelixNodeNotFoundException;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.TransactionFailureException;
+import queue.impl.ObelixQueueElement;
+import queue.interfaces.ObelixQueue;
+import store.impl.RedisObelixStore;
+import store.interfaces.ObelixStore;
+import utils.JsonTransformer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,11 +21,13 @@ import java.util.logging.Logger;
 import static events.NeoHelpers.getUserNode;
 import static events.NeoHelpers.makeSureTheUserDoesNotExceedMaxRelationshipsLimit;
 
-public class CacheBuilder implements Runnable {
-    private final static Logger LOGGER = Logger.getLogger(CacheBuilder.class.getName());
+public class ObelixCache implements Runnable {
+
+    private final static Logger LOGGER = Logger.getLogger(ObelixCache.class.getName());
 
     GraphDatabaseService graphDb;
-    RedisQueueManager redisQueueManager;
+    ObelixQueue redisQueueManager;
+    ObelixStore redisStoreManager;
     UserGraph userGraph;
 
     Map<String, String> clientSettings;
@@ -27,10 +36,11 @@ public class CacheBuilder implements Runnable {
     int maxRelationships;
     boolean buildForAllUsersOnStartup;
 
-    public CacheBuilder(GraphDatabaseService graphDb, RedisQueueManager usersCacheQueue,
+    public ObelixCache(GraphDatabaseService graphDb, ObelixQueue usersCacheQueue,
                         boolean buildForAllUsersOnStartup, String recommendationDepth,
                         int maxRelationships, Map<String, String> clientSettings) {
 
+        this.redisStoreManager = new RedisObelixStore();
         this.graphDb = graphDb;
         this.redisQueueManager = usersCacheQueue;
         this.userGraph = new UserGraph(graphDb);
@@ -41,7 +51,7 @@ public class CacheBuilder implements Runnable {
     }
 
     private void buildSettingsCache() {
-        redisQueueManager.set("settings", new JsonTransformer().render(this.clientSettings));
+        //redisStoreManager.set("settings", new JsonTransformer().render(this.clientSettings));
     }
 
     private void buildCacheForUser(String userid) {
@@ -52,9 +62,10 @@ public class CacheBuilder implements Runnable {
         try {
             recommendations = this.userGraph.recommend(userid, this.recommendationDepth);
             JsonTransformer jsonTransformer = new JsonTransformer();
-            redisQueueManager.set(
+            /*redisStoreManager.set(
                     "recommendations::" + userid,
                     jsonTransformer.render(recommendations));
+                */
 
         } catch (ObelixNodeNotFoundException | NoSuchElementException | IllegalArgumentException e) {
             LOGGER.log(Level.WARNING, "Cache for user " + userid + " failed to build..! Can't find the user");
@@ -71,7 +82,7 @@ public class CacheBuilder implements Runnable {
             int usersAdded = 0;
             try (Transaction tx = graphDb.beginTx()) {
                 for (String userid : this.userGraph.getAll()) {
-                    redisQueueManager.rpush(userid);
+                    redisQueueManager.push(new ObelixQueueElement(userid));
                     usersAdded += 1;
                 }
                 tx.success();
@@ -99,7 +110,7 @@ public class CacheBuilder implements Runnable {
 
             int imported = 0;
             while (true) {
-                String user = redisQueueManager.pop();
+                ObelixQueueElement user = redisQueueManager.pop();
 
                 if (user == null || user.equals("") || user.equals("0")) {
                     break;
@@ -115,13 +126,13 @@ public class CacheBuilder implements Runnable {
                     imported += 1;
 
                     try (Transaction tx = graphDb.beginTx()) {
-                        buildCacheForUser(user);
-                        usersHandledAlready.add(user);
+                        buildCacheForUser(user.toString());
+                        usersHandledAlready.add(user.toString());
                         tx.success();
                     } catch ( TransactionFailureException e) {
                         LOGGER.log(Level.WARNING, "Pushing user [" + user + "]back on the queue because: " + e.getMessage());
                         usersHandledAlready.remove(user);
-                        redisQueueManager.rpush(user);
+                        redisQueueManager.push(new ObelixQueueElement(user.toString()));
                     }
                 }
 

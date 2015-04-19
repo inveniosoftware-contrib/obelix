@@ -1,6 +1,6 @@
 package events;
 
-import graph.ObelixNodeNotFoundException;
+import graph.exceptions.ObelixNodeNotFoundException;
 import org.neo4j.graphdb.*;
 import org.neo4j.graphdb.index.Index;
 import org.neo4j.graphdb.index.IndexManager;
