@@ -8,6 +8,7 @@ import org.neo4j.graphdb.NotFoundException;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.TransactionFailureException;
 import org.neo4j.kernel.DeadlockDetectedException;
+import queue.impl.ObelixQueueElement;
 import queue.interfaces.ObelixQueue;
 
 import java.util.logging.Level;
@@ -48,10 +49,10 @@ public class ObelixFeeder implements Runnable {
                 e.printStackTrace();
             }
 
-            String result = redisQueueManager.pop();
+            ObelixQueueElement result = redisQueueManager.pop();
 
             if (result != null) {
-                NeoEvent event = EventFactory.build(result);
+                NeoEvent event = EventFactory.build(result.toString());
 
                 if (event != null) {
 
@@ -64,7 +65,7 @@ public class ObelixFeeder implements Runnable {
                         // This will maintain the caches for all active users
 
                         if(!usersCacheQueue.getAll().contains(event.getUser())) {
-                            usersCacheQueue.push(event.getUser());
+                            usersCacheQueue.push(new ObelixQueueElement(event.getUser()));
                         }
 
                         tx.success();

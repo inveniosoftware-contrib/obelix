@@ -5,6 +5,7 @@ import graph.exceptions.ObelixNodeNotFoundException;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.TransactionFailureException;
+import queue.impl.ObelixQueueElement;
 import queue.interfaces.ObelixQueue;
 import store.impl.RedisObelixStore;
 import store.interfaces.ObelixStore;
@@ -81,7 +82,7 @@ public class ObelixCache implements Runnable {
             int usersAdded = 0;
             try (Transaction tx = graphDb.beginTx()) {
                 for (String userid : this.userGraph.getAll()) {
-                    redisQueueManager.push(userid);
+                    redisQueueManager.push(new ObelixQueueElement(userid));
                     usersAdded += 1;
                 }
                 tx.success();
@@ -109,7 +110,7 @@ public class ObelixCache implements Runnable {
 
             int imported = 0;
             while (true) {
-                String user = redisQueueManager.pop();
+                ObelixQueueElement user = redisQueueManager.pop();
 
                 if (user == null || user.equals("") || user.equals("0")) {
                     break;
@@ -125,13 +126,13 @@ public class ObelixCache implements Runnable {
                     imported += 1;
 
                     try (Transaction tx = graphDb.beginTx()) {
-                        buildCacheForUser(user);
-                        usersHandledAlready.add(user);
+                        buildCacheForUser(user.toString());
+                        usersHandledAlready.add(user.toString());
                         tx.success();
                     } catch ( TransactionFailureException e) {
                         LOGGER.log(Level.WARNING, "Pushing user [" + user + "]back on the queue because: " + e.getMessage());
                         usersHandledAlready.remove(user);
-                        redisQueueManager.push(user);
+                        redisQueueManager.push(new ObelixQueueElement(user.toString()));
                     }
                 }
 

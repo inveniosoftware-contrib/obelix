@@ -7,26 +7,26 @@ import java.util.List;
 
 public class InternalObelixQueue implements ObelixQueue {
 
-    private List<String> queue;
+    private List<ObelixQueueElement> queue;
 
     public InternalObelixQueue() {
         this.queue = new ArrayList<>();
     }
 
     @Override
-    public String pop() {
-        String result = this.queue.get(0);
+    public ObelixQueueElement pop() {
+        ObelixQueueElement result = this.queue.get(0);
         this.queue.remove(0);
         return result;
     }
 
     @Override
-    public void push(String element) {
+    public void push(ObelixQueueElement element) {
         this.queue.add(element);
     }
 
     @Override
-    public List<String> getAll() {
+    public List<ObelixQueueElement> getAll() {
         return queue;
     }
 

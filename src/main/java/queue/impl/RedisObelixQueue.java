@@ -6,6 +6,7 @@ import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import utils.RedisPool;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class RedisObelixQueue implements ObelixQueue {
@@ -20,22 +21,25 @@ public class RedisObelixQueue implements ObelixQueue {
         this.prefix = "obelix:queue:";
     }
 
-    public synchronized String pop() {
+    public synchronized ObelixQueueElement pop() {
         try (Jedis jedis = this.redisPool.getResource()) {
-            return jedis.lpop(this.prefix + this.queueName);
+            return new ObelixQueueElement(jedis.lpop(this.prefix + this.queueName));
         }
     }
 
-    public synchronized void push(String entry) {
+    public synchronized void push(ObelixQueueElement entry) {
         try (Jedis jedis = this.redisPool.getResource()) {
-            jedis.rpush(this.prefix + this.queueName, entry);
+            jedis.rpush(this.prefix + this.queueName, entry.data.toString());
         }
     }
 
-    public synchronized List<String> getAll() {
+    public synchronized List<ObelixQueueElement> getAll() {
         try (Jedis jedis = this.redisPool.getResource()) {
-            return jedis.lrange(this.prefix + this.queueName, 0, jedis.llen(this.prefix + this.queueName));
+            List<ObelixQueueElement> result = new ArrayList<>();
+            for(String obj : jedis.lrange(this.prefix + this.queueName, 0, jedis.llen(this.prefix + this.queueName))) {
+                result.add(new ObelixQueueElement(obj));
+            }
+            return result;
         }
     }
-
 }

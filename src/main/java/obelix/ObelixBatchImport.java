@@ -12,6 +12,7 @@ import org.neo4j.unsafe.batchinsert.BatchInserter;
 import org.neo4j.unsafe.batchinsert.BatchInserterIndex;
 import org.neo4j.unsafe.batchinsert.BatchInserterIndexProvider;
 import org.neo4j.unsafe.batchinsert.BatchInserters;
+import queue.impl.ObelixQueueElement;
 import queue.impl.RedisObelixQueue;
 import queue.interfaces.ObelixQueue;
 
@@ -143,7 +144,7 @@ public class ObelixBatchImport {
         int c = 0;
         while (notFinised) {
 
-            String result = redisQueueManager.pop();
+            ObelixQueueElement result = redisQueueManager.pop();
 
             if (result == null) {
                 notFinised = false;
@@ -151,7 +152,7 @@ public class ObelixBatchImport {
 
             if (result != null) {
 
-                NeoEvent event = getEvent(result);
+                NeoEvent event = getEvent(result.toString());
 
                 if(event == null) {
                     continue;
