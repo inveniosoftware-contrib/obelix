@@ -2,7 +2,7 @@ services:
   - redis-server
 
 setup_tasks:
- - mvn -B compile
+ - mvn -B clean install
   
 tasks:
  - mvn -B cobertura:cobertura
