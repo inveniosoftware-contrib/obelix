@@ -1,5 +1,8 @@
 services:
   - redis-server
+
+setup_tasks:
+ - mvn -B build
   
 tasks:
  - mvn -B cobertura:cobertura
