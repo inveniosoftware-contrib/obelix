@@ -5,9 +5,4 @@ setup_tasks:
  - mvn -B clean install
   
 tasks:
- - mvn -B cobertura:cobertura
-
-coverage:
-  path: target/site/cobertura/coverage.xml
-  parser: cobertura
-
+ - mvn -B test
