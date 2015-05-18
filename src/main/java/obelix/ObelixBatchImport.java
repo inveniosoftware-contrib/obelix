@@ -16,6 +16,7 @@ import queue.impl.ObelixQueueElement;
 import queue.impl.RedisObelixQueue;
 import queue.interfaces.ObelixQueue;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
@@ -124,7 +125,12 @@ public class ObelixBatchImport {
         config.put("neostore.propertystore.db.strings.mapped_memory", "800M");
         config.put("neostore.propertystore.db.arrays.mapped_memory", "500M");
 
-        BatchInserter inserter = BatchInserters.inserter(neo4storage, config);
+        BatchInserter inserter = null;
+        try {
+            inserter = BatchInserters.inserter(neo4storage, config);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
         BatchInserterIndexProvider indexProvider = new LuceneBatchInserterIndexProvider(inserter);
 

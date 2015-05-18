@@ -10,15 +10,11 @@
     <packaging>jar</packaging>
 
     <name>obelix</name>
-    <url>http://maven.apache.org</url>
+    <url>http://obelix.io</url>
 
-    <repositories>
-        <repository>
-            <id>sonatype</id>
-            <name>Sonatype Groups</name>
-            <url>https://oss.sonatype.org/content/groups/public/</url>
-        </repository>
-    </repositories>
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
 
     <build>
         <pluginManagement>
@@ -56,35 +52,6 @@
                         </execution>
                     </executions>
                 </plugin>
-
-		<plugin>
-                    <groupId>org.codehaus.mojo</groupId>
-                    <artifactId>cobertura-maven-plugin</artifactId>
-                    <version>2.7</version>
-                    <configuration>
-                        <formats>
-                            <format>xml</format>
-                        </formats>
-                        <check>
-                            <branchRate>85</branchRate>
-                            <lineRate>85</lineRate>
-                            <haltOnFailure>true</haltOnFailure>
-                            <totalBranchRate>85</totalBranchRate>
-                            <totalLineRate>85</totalLineRate>
-                            <packageLineRate>85</packageLineRate>
-                            <packageBranchRate>85</packageBranchRate>
-                        </check>
-                    </configuration>
-                    <executions>
-                        <execution>
-                            <goals>
-                                <goal>clean</goal>
-                                <goal>check</goal>
-                            </goals>
-                        </execution>
-                    </executions>
-                </plugin>
-
             </plugins>
         </pluginManagement>
 
@@ -97,12 +64,8 @@
 
     </build>
 
-    <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
-
-
     <dependencies>
+
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
@@ -110,17 +73,10 @@
             <scope>test</scope>
         </dependency>
 
-
-        <dependency>
-            <groupId>net.kencochrane.raven</groupId>
-            <artifactId>raven</artifactId>
-            <version>4.0</version>
-        </dependency>
-
         <dependency>
             <groupId>org.neo4j</groupId>
             <artifactId>neo4j</artifactId>
-            <version>2.1.6</version>
+            <version>2.3.0-M01</version>
         </dependency>
 
         <dependency>
@@ -159,6 +115,24 @@
             <groupId>com.sparkjava</groupId>
             <artifactId>spark-core</artifactId>
             <version>2.1</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-slf4j-impl</artifactId>
+            <version>2.2</version>
+        </dependency>
+
+        <dependency>
+            <groupId>net.kencochrane.raven</groupId>
+            <artifactId>raven-log4j2</artifactId>
+            <version>6.0.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>net.kencochrane.raven</groupId>
+            <artifactId>raven</artifactId>
+            <version>6.0.0</version>
         </dependency>
 
     </dependencies>

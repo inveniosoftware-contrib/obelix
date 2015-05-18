@@ -14,6 +14,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class Main {
+
     private final static Logger LOGGER = Logger.getLogger(Main.class.getName());
 
     private static void registerShutdownHook(final GraphDatabaseService graphDb) {
@@ -26,6 +27,8 @@ public class Main {
     }
 
     public static void main(String... args) {
+
+        LOGGER.log(Level.INFO, "HEIHEI");
 
         String neoLocation = "graph.db";
         String redisQueueName = "logentries";

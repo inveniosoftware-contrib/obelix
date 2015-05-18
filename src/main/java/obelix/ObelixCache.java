@@ -25,6 +25,8 @@ public class ObelixCache implements Runnable {
 
     private final static Logger LOGGER = Logger.getLogger(ObelixCache.class.getName());
 
+
+
     GraphDatabaseService graphDb;
     ObelixQueue redisQueueManager;
     ObelixStore redisStoreManager;
@@ -51,6 +53,7 @@ public class ObelixCache implements Runnable {
     }
 
     private void buildSettingsCache() {
+
         //redisStoreManager.set("settings", new JsonTransformer().render(this.clientSettings));
     }
 

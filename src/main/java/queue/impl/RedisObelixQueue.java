@@ -23,7 +23,10 @@ public class RedisObelixQueue implements ObelixQueue {
 
     public synchronized ObelixQueueElement pop() {
         try (Jedis jedis = this.redisPool.getResource()) {
-            return new ObelixQueueElement(jedis.lpop(this.prefix + this.queueName));
+            if(jedis.llen(this.prefix + this.queueName) > 0) {
+                return new ObelixQueueElement(jedis.lpop(this.prefix + this.queueName));
+            }
+            return null;
         }
     }
 
