@@ -53,4 +53,21 @@ public class TestObelixRedisQueue extends TestCase {
         assertEquals(obelixQueue.getAll(), redisObelixQueue.getAll());
 
     }
+
+    public void testReadJsonDataFormattedAsStringFromQueue() {
+        String testData = "\"{\\\"file_format\\\": \\\"page_view\\\", \\\"timestamp\\\": 1431962580.7399549, \\\"item\\\": 2016165, \\\"user\\\": \\\"58335767\\\", \\\"ip\\\": \\\"188.218.111.19\\\", \\\"type\\\": \\\"events.pageviews\\\"}\"";
+
+        ObelixQueue obelixQueue = new RedisObelixQueue("logentries" + random()*10000);
+        obelixQueue.push(new ObelixQueueElement(testData));
+        obelixQueue.pop();
+
+    }
+
+    public void testReadValidJsonDataFromQueue() {
+        String testData = "{\"file_format\": \"page_view\"}";
+
+        ObelixQueue obelixQueue = new RedisObelixQueue("logentries" + random()*10000);
+        obelixQueue.push(new ObelixQueueElement(testData));
+        obelixQueue.pop();
+    }
 }

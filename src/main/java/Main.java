@@ -27,10 +27,11 @@ public class Main {
     }
 
     public static void main(String... args) {
+        LOGGER.info("Starting Obelix:main");
 
-        LOGGER.error("Starting Obelix:main");
 
         String neoLocation = "graph.db";
+        String redisQueuePrefix = "obelix:queue:";
         String redisQueueName = "logentries";
         int maxRelationships = 30;
         int workers = 1;
@@ -64,6 +65,14 @@ public class Main {
         for (String arg : args) {
             if (arg.equals("--redis-queue-name")) {
                 redisQueueName = args[carg + 1];
+            }
+            carg += 1;
+        }
+
+        carg = 0;
+        for (String arg : args) {
+            if (arg.equals("--redis-queue-prefix")) {
+                redisQueuePrefix = args[carg + 1];
             }
             carg += 1;
         }
@@ -136,8 +145,8 @@ public class Main {
 
         registerShutdownHook(graphDb);
 
-        ObelixQueue redisQueueManager = new RedisObelixQueue(redisQueueName);
-        ObelixQueue usersCacheQueue= new RedisObelixQueue("cache::users");
+        ObelixQueue redisQueueManager = new RedisObelixQueue(redisQueuePrefix, redisQueueName);
+        ObelixQueue usersCacheQueue= new RedisObelixQueue(redisQueuePrefix, "cache::users");
 
         // Warm up neo4j cache
         /*

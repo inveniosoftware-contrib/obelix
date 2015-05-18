@@ -17,6 +17,13 @@ public class ObelixQueueElement {
     }
 
     public ObelixQueueElement(String rawData) {
+
+        // Let's try to convert the json formatted as string..
+        if(!rawData.startsWith("{")) {
+            rawData = rawData.substring(1, rawData.length()-1);
+            rawData = rawData.replace("\\", "");
+        }
+
         this.data = new JSONObject(rawData);
     }
 

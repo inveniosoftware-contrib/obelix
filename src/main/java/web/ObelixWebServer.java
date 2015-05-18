@@ -49,6 +49,9 @@ public class ObelixWebServer implements Runnable {
     }
 
     public void run() {
+
+        try {
+
         port(this.webPort);
         ObelixWebAuth.enableCORS("*", "*", "*");
         ObelixWebAuth.requireValidToken();
@@ -134,10 +137,13 @@ public class ObelixWebServer implements Runnable {
             }
         });
 
+
+        } catch (Exception e) {
+            LOGGER.error("ObelixWebServer Exception", e);
+        }
     }
 
     private Map<String, String> settings() {
         return this.clientSettings;
     }
-
 }
