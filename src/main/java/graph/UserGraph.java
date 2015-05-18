@@ -12,6 +12,8 @@ import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.traversal.Evaluators;
 import org.neo4j.graphdb.traversal.Uniqueness;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -23,6 +25,8 @@ import static events.NeoHelpers.getUserNode;
 import static events.NeoHelpers.makeSureTheUserDoesNotExceedMaxRelationshipsLimit;
 
 public class UserGraph {
+
+    private final static Logger LOGGER = LoggerFactory.getLogger(UserGraph.class.getName());
 
     class UserItemRelationship {
 
@@ -61,7 +65,7 @@ public class UserGraph {
     public String cleanAllRelationships(String max) throws ObelixNodeNotFoundException {
 
         for (String userid : getAll()) {
-            System.out.println(userid + " " + cleanRelationships(userid, max));
+            LOGGER.info("Cleaning" + userid + " " + cleanRelationships(userid, max));
         }
 
         return "done";
@@ -186,15 +190,14 @@ public class UserGraph {
 
                 } catch (NotFoundException e) {
                     errorFetchingRelationships = true;
-                    System.err.println("Relationships not found, we have to try again! (" + e.getMessage() + ")");
-                    System.err.println(userID + "-" + depth + "-" + sinceTimestamp + "-" + untilTimestamp + "-" + importanceFactor);
+                    LOGGER.error("Relationships not found, we have to try again! (" + e.getMessage() + ")");
+                    LOGGER.error(userID + "-" + depth + "-" + sinceTimestamp + "-" + untilTimestamp + "-" + importanceFactor);
                 }
             }
 
-
             if (errorFetchingRelationships) {
-                System.err.println("Fetching relationships OK now for:");
-                System.err.println(userID + "-" + depth + "-" + sinceTimestamp + "-" + untilTimestamp + "-" + importanceFactor);
+                LOGGER.error("Fetching relationships OK now for:");
+                LOGGER.error(userID + "-" + depth + "-" + sinceTimestamp + "-" + untilTimestamp + "-" + importanceFactor);
             }
 
             double maxScore = 0.0;
@@ -202,7 +205,6 @@ public class UserGraph {
 
             int maxRecommendatins = 100;
             int recommendationsCount = 0;
-
 
             for (UserItemRelationship it : userItemRelationships) {
 

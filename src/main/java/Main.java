@@ -28,7 +28,7 @@ public class Main {
 
     public static void main(String... args) {
 
-        LOGGER.error("HEIHEI");
+        LOGGER.error("Starting Obelix:main");
 
         String neoLocation = "graph.db";
         String redisQueueName = "logentries";
@@ -109,7 +109,7 @@ public class Main {
                     recommendationDepth = args[carg+1];
 
                 } catch (NumberFormatException e) {
-                    System.err.println("Wrong format for --recommendation-depth option, use a number from 0-10");
+                    LOGGER.error("Wrong format for --recommendation-depth option, use a number from 0-10");
                 }
             }
             carg += 1;

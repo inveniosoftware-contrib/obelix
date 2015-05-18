@@ -12,6 +12,9 @@ import org.neo4j.unsafe.batchinsert.BatchInserter;
 import org.neo4j.unsafe.batchinsert.BatchInserterIndex;
 import org.neo4j.unsafe.batchinsert.BatchInserterIndexProvider;
 import org.neo4j.unsafe.batchinsert.BatchInserters;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import queue.impl.ObelixQueueElement;
 import queue.impl.RedisObelixQueue;
 import queue.interfaces.ObelixQueue;
@@ -19,13 +22,11 @@ import queue.interfaces.ObelixQueue;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 
 public class ObelixBatchImport {
 
-    private final static Logger LOGGER = Logger.getLogger(ObelixBatchImport.class.getName());
+    private final static Logger LOGGER = LoggerFactory.getLogger(ObelixBatchImport.class.getName());
 
     private static void registerShutdownHook(final BatchInserter graphDb, final BatchInserterIndexProvider indexProvider) {
         Runtime.getRuntime().addShutdownHook(new Thread() {
@@ -179,7 +180,7 @@ public class ObelixBatchImport {
             c += 1;
 
             if (c % 1000 == 0) {
-                LOGGER.log(Level.INFO, "Imported " + c);
+                LOGGER.info("Imported " + c);
             }
         }
     }

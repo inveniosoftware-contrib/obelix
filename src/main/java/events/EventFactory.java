@@ -3,13 +3,12 @@ package events;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class EventFactory {
 
-    private final static Logger LOGGER = Logger.getLogger(EventFactory.class.getName());
+    private final static Logger LOGGER = LoggerFactory.getLogger(EventFactory.class.getName());
 
     public static final String EVENTS_DOWNLOADS = "events.downloads";
     public static final String EVENTS_DOWNLOADS_LOG = "download-log";
@@ -28,7 +27,7 @@ public class EventFactory {
         try {
             type = object.get("type").getAsString();
         } catch (NullPointerException e) {
-            LOGGER.log(Level.WARNING, "No suitable type found for event: " + object);
+            LOGGER.warn("No suitable type found for event: " + object);
             return null;
         }
 

@@ -5,12 +5,16 @@ import org.neo4j.graphdb.NotFoundException;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.tooling.GlobalGraphOperations;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
 
 
 public class RelationGraph {
+
+    private final static Logger LOGGER = LoggerFactory.getLogger(RelationGraph.class.getName());
 
     GraphDatabaseService graphdb;
 
@@ -65,13 +69,13 @@ public class RelationGraph {
                     relations_ids.add(key);
 
                 } catch (NotFoundException e) {
-                    System.err.println("Ignores one relationship, probably deleted..");
+                    LOGGER.error("Ignores one relationship, probably deleted..");
                 }
 
             }
 
-            System.out.println("Newest timestamp: " + newestTimestamp);
-            System.out.println("Oldest timestamp: " + oldestTimestamp);
+            LOGGER.info("Newest timestamp: " + newestTimestamp);
+            LOGGER.info("Oldest timestamp: " + oldestTimestamp);
 
             tx.success();
 

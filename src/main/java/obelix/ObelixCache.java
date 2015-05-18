@@ -5,6 +5,8 @@ import graph.exceptions.ObelixNodeNotFoundException;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.TransactionFailureException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import queue.impl.ObelixQueueElement;
 import queue.interfaces.ObelixQueue;
 import store.impl.RedisObelixStore;
@@ -15,17 +17,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import static events.NeoHelpers.getUserNode;
 import static events.NeoHelpers.makeSureTheUserDoesNotExceedMaxRelationshipsLimit;
 
 public class ObelixCache implements Runnable {
 
-    private final static Logger LOGGER = Logger.getLogger(ObelixCache.class.getName());
 
-
+    private final static Logger LOGGER = LoggerFactory.getLogger(ObelixCache.class.getName());
 
     GraphDatabaseService graphDb;
     ObelixQueue redisQueueManager;
@@ -59,7 +58,7 @@ public class ObelixCache implements Runnable {
 
     private void buildCacheForUser(String userid) {
 
-        LOGGER.log(Level.INFO, "Building cache for userid: " + userid);
+        LOGGER.info("Building cache for userid: " + userid);
 
         Map<String, Double> recommendations;
         try {
@@ -71,7 +70,7 @@ public class ObelixCache implements Runnable {
                 */
 
         } catch (ObelixNodeNotFoundException | NoSuchElementException | IllegalArgumentException e) {
-            LOGGER.log(Level.WARNING, "Cache for user " + userid + " failed to build..! Can't find the user");
+            LOGGER.info("Cache for user " + userid + " failed to build..! Can't find the user");
         }
     }
 
@@ -80,7 +79,7 @@ public class ObelixCache implements Runnable {
         buildSettingsCache();
 
         if (this.buildForAllUsersOnStartup) {
-            LOGGER.log(Level.INFO, "We're going to build the cache for all users!");
+            LOGGER.info("We're going to build the cache for all users!");
 
             int usersAdded = 0;
             try (Transaction tx = graphDb.beginTx()) {
@@ -91,8 +90,8 @@ public class ObelixCache implements Runnable {
                 tx.success();
             }
 
-            LOGGER.log(Level.INFO, "Building cache for " + usersAdded + " users!");
-            LOGGER.log(Level.INFO, "But first we should clean up relationships for all users");
+            LOGGER.info("Building cache for " + usersAdded + " users!");
+            LOGGER.info("But first we should clean up relationships for all users");
 
             try (Transaction tx = graphDb.beginTx()) {
                 for (String user : this.userGraph.getAll()) {
@@ -121,7 +120,7 @@ public class ObelixCache implements Runnable {
 
                 // We only create the cache for unique users every 50 entry imported.
                 if(usersHandledAlready.contains(user)) {
-                    LOGGER.log(Level.INFO, "Skipping creation of recommendations for " + user);
+                    LOGGER.info("Skipping creation of recommendations for " + user);
                     continue;
                 }
 
@@ -133,7 +132,7 @@ public class ObelixCache implements Runnable {
                         usersHandledAlready.add(user.toString());
                         tx.success();
                     } catch ( TransactionFailureException e) {
-                        LOGGER.log(Level.WARNING, "Pushing user [" + user + "]back on the queue because: " + e.getMessage());
+                        LOGGER.info("Pushing user [" + user + "]back on the queue because: " + e.getMessage());
                         usersHandledAlready.remove(user);
                         redisQueueManager.push(new ObelixQueueElement(user.toString()));
                     }
@@ -147,12 +146,12 @@ public class ObelixCache implements Runnable {
             }
 
             if(imported > 0) {
-                LOGGER.log(Level.INFO,"Built " + imported + " recommendation caches!");
+                LOGGER.info("Built " + imported + " recommendation caches!");
             }
 
             int secondsDalay = 2;
 
-            LOGGER.log(Level.INFO, "CacheBuilder paused for " + secondsDalay + " seconds");
+            LOGGER.info("CacheBuilder paused for " + secondsDalay + " seconds");
 
             try {
                 Thread.sleep(secondsDalay * 1000);

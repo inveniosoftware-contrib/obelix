@@ -9,12 +9,12 @@ import org.json.JSONObject;
 import org.neo4j.graphdb.DynamicLabel;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Jedis;
 import utils.JsonTransformer;
 
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import static spark.Spark.exception;
 import static spark.Spark.get;
@@ -23,7 +23,7 @@ import static spark.SparkBase.port;
 
 public class ObelixWebServer implements Runnable {
 
-    private final static Logger LOGGER = Logger.getLogger(ObelixWebServer.class.getName());
+    private final static Logger LOGGER = LoggerFactory.getLogger(ObelixWebServer.class.getName());
 
     public static final Label LABEL_ITEM = DynamicLabel.label("Item");
     public static final Label LABEL_USER = DynamicLabel.label("User");
@@ -105,7 +105,7 @@ public class ObelixWebServer implements Runnable {
 
 
         exception(ObelixNodeNotFoundException.class, (e, request, response) -> {
-            LOGGER.log(Level.SEVERE, e.getMessage());
+            LOGGER.error(e.getMessage());
             response.status(404);
             response.body("User or item not found");
         });

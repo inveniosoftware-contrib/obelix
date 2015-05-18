@@ -1,22 +1,30 @@
 package events;
 
 import graph.exceptions.ObelixNodeNotFoundException;
-import org.neo4j.graphdb.*;
+import org.neo4j.graphdb.DynamicLabel;
+import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphdb.Label;
+import org.neo4j.graphdb.Node;
+import org.neo4j.graphdb.Relationship;
+import org.neo4j.graphdb.RelationshipType;
+import org.neo4j.graphdb.ResourceIterable;
+import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.index.Index;
 import org.neo4j.graphdb.index.IndexManager;
 import org.neo4j.graphdb.index.UniqueFactory;
 import org.neo4j.tooling.GlobalGraphOperations;
 
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class NeoHelpers {
 
-    private final static Logger LOGGER = Logger.getLogger(NeoHelpers.class.getName());
+    private final static Logger LOGGER = LoggerFactory.getLogger(NeoHelpers.class.getName());
 
     public static enum RelTypes implements RelationshipType {
         VIEWED,
@@ -43,7 +51,7 @@ public class NeoHelpers {
                 try {
                     node_ids.add(node.getProperty("node_id").toString());
                 } catch (Exception e) {
-                    LOGGER.log(Level.WARNING,"Can't find a given node... skipping");
+                    LOGGER.warn("Can't find a given node... skipping");
                 }
             }
 
@@ -202,7 +210,7 @@ public class NeoHelpers {
         }
 
         if(duplicatesRemoved > 0 || oldRemoved > 0) {
-            LOGGER.log(Level.FINE,"Cleans up relationships for "
+            LOGGER.info("Cleans up relationships for "
                             + currentUser + " deletes: "
                             + duplicatesRemoved + " duplicates and "
                             + oldRemoved + " old relationships");

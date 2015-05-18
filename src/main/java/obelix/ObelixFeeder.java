@@ -8,15 +8,15 @@ import org.neo4j.graphdb.NotFoundException;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.TransactionFailureException;
 import org.neo4j.kernel.DeadlockDetectedException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import queue.impl.ObelixQueueElement;
 import queue.interfaces.ObelixQueue;
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class ObelixFeeder implements Runnable {
 
-    private final static Logger LOGGER = Logger.getLogger(ObelixFeeder.class.getName());
+    private final static Logger LOGGER = LoggerFactory.getLogger(ObelixFeeder.class.getName());
 
     GraphDatabaseService graphDb;
     ObelixQueue redisQueueManager;
@@ -37,7 +37,7 @@ public class ObelixFeeder implements Runnable {
 
     public void run() {
 
-        LOGGER.log(Level.INFO, "Starting worker: " + workerID);
+        LOGGER.info("Starting worker: " + workerID);
 
         int count = 0;
 
@@ -57,7 +57,7 @@ public class ObelixFeeder implements Runnable {
                 if (event != null) {
 
                     try (Transaction tx = graphDb.beginTx()) {
-                        LOGGER.log(Level.FINE, "Handling event: " + event);
+                        LOGGER.info("Handling event: " + event);
 
                         event.execute(graphDb, maxRelationships);
 
@@ -71,19 +71,19 @@ public class ObelixFeeder implements Runnable {
                         tx.success();
 
                     } catch (TransactionFailureException e) {
-                        LOGGER.log(Level.SEVERE, "TransactionFailureException, need to restart");
+                        LOGGER.error("TransactionFailureException, need to restart");
                         redisQueueManager.push(result);
                         //System.exit(0);
                     } catch (NotFoundException e) {
-                        LOGGER.log(Level.SEVERE, "Not found exception, pushing the element back on the queue. " + e.getMessage() + ": " + result);
+                        LOGGER.error("Not found exception, pushing the element back on the queue. " + e.getMessage() + ": " + result);
                         redisQueueManager.push(result);
                         continue;
                     } catch (DeadlockDetectedException e) {
-                        LOGGER.log(Level.SEVERE, "Deadlock found exception, pushing the element back on the queue" + e.getMessage() + ": " + result);
+                        LOGGER.error("Deadlock found exception, pushing the element back on the queue" + e.getMessage() + ": " + result);
                         redisQueueManager.push(result);
                         continue;
                     } catch (EntityNotFoundException e) {
-                        LOGGER.log(Level.SEVERE, "EntityNotFoundException, pushing the element back on the queue" + e.getMessage() + ": " + result);
+                        LOGGER.error("EntityNotFoundException, pushing the element back on the queue" + e.getMessage() + ": " + result);
                         redisQueueManager.push(result);
                         continue;
                     }
@@ -91,7 +91,7 @@ public class ObelixFeeder implements Runnable {
                     count += 1;
 
                     if (count % 1000 == 0) {
-                        LOGGER.log(Level.INFO, "WorkerID: " + workerID + " imported " + count + " entries from redis");
+                        LOGGER.info("WorkerID: " + workerID + " imported " + count + " entries from redis");
                     }
                 }
             }
