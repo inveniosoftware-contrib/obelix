@@ -3,6 +3,8 @@ import obelix.ObelixCache;
 import obelix.ObelixFeeder;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.factory.GraphDatabaseFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import queue.impl.RedisObelixQueue;
 import queue.interfaces.ObelixQueue;
 import web.ObelixWebServer;
@@ -10,12 +12,10 @@ import web.ObelixWebServer;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class Main {
 
-    private final static Logger LOGGER = Logger.getLogger(Main.class.getName());
+    private final static Logger LOGGER = LoggerFactory.getLogger(Main.class.getName());
 
     private static void registerShutdownHook(final GraphDatabaseService graphDb) {
         Runtime.getRuntime().addShutdownHook(new Thread() {
@@ -28,7 +28,7 @@ public class Main {
 
     public static void main(String... args) {
 
-        LOGGER.log(Level.INFO, "HEIHEI");
+        LOGGER.error("HEIHEI");
 
         String neoLocation = "graph.db";
         String redisQueueName = "logentries";
@@ -115,18 +115,18 @@ public class Main {
             carg += 1;
         }
 
-        LOGGER.log(Level.INFO, "Starting Obelix");
-        LOGGER.log(Level.INFO, "all args: " + Arrays.toString(args));
-        LOGGER.log(Level.INFO, "--neo4jStore: " + neoLocation);
-        LOGGER.log(Level.INFO, "--max-relationships: " + maxRelationships);
-        LOGGER.log(Level.INFO, "--workers: " + workers);
-        LOGGER.log(Level.INFO, "--redis-queue-name: " + redisQueueName);
-        LOGGER.log(Level.INFO, "--web-port: " + webPort);
+        LOGGER.info("Starting Obelix");
+        LOGGER.info("all args: " + Arrays.toString(args));
+        LOGGER.info("--neo4jStore: " + neoLocation);
+        LOGGER.info("--max-relationships: " + maxRelationships);
+        LOGGER.info("--workers: " + workers);
+        LOGGER.info("--redis-queue-name: " + redisQueueName);
+        LOGGER.info("--web-port: " + webPort);
 
         if(batchImportAll) {
-            LOGGER.log(Level.INFO, "Starting batch import of all");
+            LOGGER.info("Starting batch import of all");
             ObelixBatchImport.run(neoLocation, redisQueueName);
-            LOGGER.log(Level.INFO, "Done importing everything! woho!");
+            LOGGER.info("Done importing everything! woho!");
             System.exit(0);
         }
 

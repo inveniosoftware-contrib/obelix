@@ -1,6 +1,6 @@
 target
 graph.db
-log4j2-local.xml
+log4j2-test.xml
 
 # Sphinx documentation
 docs/_build/
