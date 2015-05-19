@@ -14,12 +14,10 @@ import org.neo4j.unsafe.batchinsert.BatchInserterIndexProvider;
 import org.neo4j.unsafe.batchinsert.BatchInserters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import queue.impl.ObelixQueueElement;
 import queue.impl.RedisObelixQueue;
 import queue.interfaces.ObelixQueue;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -127,11 +125,7 @@ public class ObelixBatchImport {
         config.put("neostore.propertystore.db.arrays.mapped_memory", "500M");
 
         BatchInserter inserter = null;
-        try {
-            inserter = BatchInserters.inserter(neo4storage, config);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        inserter = BatchInserters.inserter(neo4storage, config);
 
         BatchInserterIndexProvider indexProvider = new LuceneBatchInserterIndexProvider(inserter);
 

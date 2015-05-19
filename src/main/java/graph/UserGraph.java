@@ -157,6 +157,10 @@ public class UserGraph {
         }
     }
 
+    public Map<String, Double> recommend(String userID) throws ObelixNodeNotFoundException {
+        return recommend(userID, "3", null, null, null);
+    }
+
     public Map<String, Double> recommend(String userID,
                                          String depth) throws ObelixNodeNotFoundException {
 

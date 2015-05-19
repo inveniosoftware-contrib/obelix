@@ -61,6 +61,7 @@ public class ObelixCache implements Runnable {
         LOGGER.info("Building cache for userid: " + userid);
 
         Map<String, Double> recommendations;
+
         try {
             recommendations = this.userGraph.recommend(userid, this.recommendationDepth);
             JsonTransformer jsonTransformer = new JsonTransformer();
@@ -86,7 +87,7 @@ public class ObelixCache implements Runnable {
                 int usersAdded = 0;
                 try (Transaction tx = graphDb.beginTx()) {
                     for (String userid : this.userGraph.getAll()) {
-                        redisQueueManager.push(new ObelixQueueElement(userid));
+                        redisQueueManager.push(new ObelixQueueElement("user_id", userid));
                         usersAdded += 1;
                     }
                     tx.success();
@@ -116,30 +117,35 @@ public class ObelixCache implements Runnable {
                 while (true) {
                     ObelixQueueElement user = redisQueueManager.pop();
 
-                    if (user == null || user.equals("") || user.equals("0")) {
+                    if(user==null) {
+                        break;
+                    }
+
+                    String userID = (String)user.data.get("user_id");
+
+                    if (userID.equals("") || userID.equals("0")) {
                         break;
                     }
 
                     // We only create the cache for unique users every 50 entry imported.
-                    if (usersHandledAlready.contains(user)) {
+                    if (usersHandledAlready.contains(userID)) {
                         LOGGER.info("Skipping creation of recommendations for " + user);
                         continue;
                     }
 
-                    if (allUsers.contains(user)) {
+                    if (allUsers.contains(userID)) {
                         imported += 1;
 
                         try (Transaction tx = graphDb.beginTx()) {
-                            buildCacheForUser(user.toString());
-                            usersHandledAlready.add(user.toString());
+                            buildCacheForUser(userID);
+                            usersHandledAlready.add(userID);
                             tx.success();
                         } catch (TransactionFailureException e) {
-                            LOGGER.info("Pushing user [" + user + "]back on the queue because: " + e.getMessage());
-                            usersHandledAlready.remove(user);
-                            redisQueueManager.push(new ObelixQueueElement(user.toString()));
+                            LOGGER.error("Pushing user [" + userID + "]back on the queue because: " + e.getMessage());
+                            usersHandledAlready.remove(userID);
+                            redisQueueManager.push(user);
                         }
                     }
-
 
                     if (imported >= 50) {
                         break;

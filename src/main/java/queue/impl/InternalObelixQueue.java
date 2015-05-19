@@ -15,6 +15,9 @@ public class InternalObelixQueue implements ObelixQueue {
 
     @Override
     public ObelixQueueElement pop() {
+        if(this.queue.size() < 1) {
+            return null;
+        }
         ObelixQueueElement result = this.queue.get(0);
         this.queue.remove(0);
         return result;

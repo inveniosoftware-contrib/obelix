@@ -146,7 +146,7 @@ public class Main {
         registerShutdownHook(graphDb);
 
         ObelixQueue redisQueueManager = new RedisObelixQueue(redisQueuePrefix, redisQueueName);
-        ObelixQueue usersCacheQueue= new RedisObelixQueue(redisQueuePrefix, "cache::users");
+        ObelixQueue usersCacheQueue= new RedisObelixQueue(redisQueuePrefix, "cache:users");
 
         // Warm up neo4j cache
         /*
