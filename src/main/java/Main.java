@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import queue.impl.RedisObelixQueue;
 import queue.interfaces.ObelixQueue;
+import store.impl.RedisObelixStore;
 import web.ObelixWebServer;
 
 import java.util.Arrays;
@@ -166,8 +167,8 @@ public class Main {
 
         (new Thread(new ObelixWebServer(graphDb, webPort, recommendationDepth, clientSettings()))).start();
 
-        (new Thread(new ObelixCache(graphDb,
-                usersCacheQueue, buildForAllUsersOnStartup, recommendationDepth, maxRelationships,
+        (new Thread(new ObelixCache(graphDb, usersCacheQueue, new RedisObelixStore(),
+                buildForAllUsersOnStartup, recommendationDepth, maxRelationships,
                 clientSettings()))).start();
 
     }

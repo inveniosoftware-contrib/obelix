@@ -9,7 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import queue.impl.ObelixQueueElement;
 import queue.interfaces.ObelixQueue;
-import store.impl.RedisObelixStore;
+import store.impl.ObelixStoreElement;
 import store.interfaces.ObelixStore;
 import utils.JsonTransformer;
 
@@ -38,10 +38,11 @@ public class ObelixCache implements Runnable {
     boolean buildForAllUsersOnStartup;
 
     public ObelixCache(GraphDatabaseService graphDb, ObelixQueue usersCacheQueue,
+                       ObelixStore obelixStore,
                        boolean buildForAllUsersOnStartup, String recommendationDepth,
                        int maxRelationships, Map<String, String> clientSettings) {
 
-        this.redisStoreManager = new RedisObelixStore();
+        this.redisStoreManager = obelixStore;
         this.graphDb = graphDb;
         this.redisQueueManager = usersCacheQueue;
         this.userGraph = new UserGraph(graphDb);
@@ -65,10 +66,9 @@ public class ObelixCache implements Runnable {
         try {
             recommendations = this.userGraph.recommend(userid, this.recommendationDepth);
             JsonTransformer jsonTransformer = new JsonTransformer();
-            /*redisStoreManager.set(
+            redisStoreManager.set(
                     "recommendations::" + userid,
-                    jsonTransformer.render(recommendations));
-                */
+                    new ObelixStoreElement(jsonTransformer.render(recommendations)));
 
         } catch (ObelixNodeNotFoundException | NoSuchElementException | IllegalArgumentException e) {
             LOGGER.info("Cache for user " + userid + " failed to build..! Can't find the user");
@@ -110,52 +110,7 @@ public class ObelixCache implements Runnable {
             }
 
             while (true) {
-                List<String> allUsers = this.userGraph.getAll();
-                List<String> usersHandledAlready = new ArrayList<>();
-
-                int imported = 0;
-                while (true) {
-                    ObelixQueueElement user = redisQueueManager.pop();
-
-                    if(user==null) {
-                        break;
-                    }
-
-                    String userID = (String)user.data.get("user_id");
-
-                    if (userID.equals("") || userID.equals("0")) {
-                        break;
-                    }
-
-                    // We only create the cache for unique users every 50 entry imported.
-                    if (usersHandledAlready.contains(userID)) {
-                        LOGGER.info("Skipping creation of recommendations for " + user);
-                        continue;
-                    }
-
-                    if (allUsers.contains(userID)) {
-                        imported += 1;
-
-                        try (Transaction tx = graphDb.beginTx()) {
-                            buildCacheForUser(userID);
-                            usersHandledAlready.add(userID);
-                            tx.success();
-                        } catch (TransactionFailureException e) {
-                            LOGGER.error("Pushing user [" + userID + "]back on the queue because: " + e.getMessage());
-                            usersHandledAlready.remove(userID);
-                            redisQueueManager.push(user);
-                        }
-                    }
-
-                    if (imported >= 50) {
-                        break;
-                    }
-
-                }
-
-                if (imported > 0) {
-                    LOGGER.info("Built " + imported + " recommendation caches!");
-                }
+                buildCacheFromCacheQueue();
 
                 int secondsDalay = 2;
 
@@ -170,6 +125,54 @@ public class ObelixCache implements Runnable {
             }
         } catch (Exception e) {
             LOGGER.error("ObelixCache Exception", e);
+        }
+    }
+
+    public void buildCacheFromCacheQueue() {
+        List<String> allUsers = this.userGraph.getAll();
+        List<String> usersHandledAlready = new ArrayList<>();
+
+        int imported = 0;
+        while (true) {
+            ObelixQueueElement user = redisQueueManager.pop();
+
+            if (user == null) {
+                break;
+            }
+
+            String userID = (String) user.data.get("user_id");
+
+            if (userID.equals("") || userID.equals("0")) {
+                break;
+            }
+
+            // We only create the cache for unique users every 50 entry imported.
+            if (usersHandledAlready.contains(userID)) {
+                LOGGER.info("Skipping creation of recommendations for " + user);
+                continue;
+            }
+
+            if (allUsers.contains(userID)) {
+                imported += 1;
+
+                try (Transaction tx = graphDb.beginTx()) {
+                    buildCacheForUser(userID);
+                    usersHandledAlready.add(userID);
+                    tx.success();
+                } catch (TransactionFailureException e) {
+                    LOGGER.error("Pushing user [" + userID + "]back on the queue because: " + e.getMessage());
+                    usersHandledAlready.remove(userID);
+                    redisQueueManager.push(user);
+                }
+            }
+
+            if (imported >= 50) {
+                break;
+            }
+        }
+
+        if (imported > 0) {
+            LOGGER.info("Built " + imported + " recommendation caches!");
         }
     }
 }

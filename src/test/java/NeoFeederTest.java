@@ -104,4 +104,31 @@ public class NeoFeederTest extends TestCase {
         assertTrue(new UserGraph(graphDb).recommend("1").get("1") > new UserGraph(graphDb).recommend("1").get("2"));
 
     }
+
+
+    public void testFeedThousandEqualItems() throws Exception {
+        JSONObject jsonObject;
+
+        for (int i = 0; i < 1000; i++) {
+            jsonObject = new JSONObject();
+            jsonObject.put("type", "events.pageviews");
+            jsonObject.put("user", "1");
+            jsonObject.put("item", "2");
+            jsonObject.put("timestamp", "1422027564617");
+            obelixQueue.push(new ObelixQueueElement(jsonObject));
+        }
+
+        ObelixFeeder obelixFeeder = new ObelixFeeder(graphDb, 10, obelixQueue, obelixCacheQueue, 1);
+        obelixFeeder.feed();
+
+        HashMap<String, Double> result = new HashMap<>();
+        result.put("1", 1.0);
+        result.put("2", 1.0);
+
+        assertEquals(result, new UserGraph(graphDb).recommend("1"));
+    }
+
+
+
+
 }
