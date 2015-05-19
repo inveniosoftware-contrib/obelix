@@ -1,6 +1,5 @@
 package obelix;
 
-import scala.NotImplementedError;
 
 public class Obelix {
 
@@ -41,7 +40,7 @@ public class Obelix {
     }
 
     public Obelix() {
-        throw new NotImplementedError();
+        throw new IllegalArgumentException();
     }
 
     public Obelix(Builder builder) {

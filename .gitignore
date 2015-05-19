@@ -1,5 +1,6 @@
 target
 graph.db
+log4j2-test.xml
 
 # Sphinx documentation
 docs/_build/

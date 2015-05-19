@@ -21,9 +21,18 @@ public class RedisObelixQueue implements ObelixQueue {
         this.prefix = "obelix:queue:";
     }
 
+    public RedisObelixQueue(String prefix, String queueName) {
+        this.redisPool = new RedisPool().getRedis();
+        this.queueName = queueName;
+        this.prefix = prefix;
+    }
+
     public synchronized ObelixQueueElement pop() {
         try (Jedis jedis = this.redisPool.getResource()) {
-            return new ObelixQueueElement(jedis.lpop(this.prefix + this.queueName));
+            if(jedis.llen(this.prefix + this.queueName) > 0) {
+                return new ObelixQueueElement(jedis.lpop(this.prefix + this.queueName));
+            }
+            return null;
         }
     }
 

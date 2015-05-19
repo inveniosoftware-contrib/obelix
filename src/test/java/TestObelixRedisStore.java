@@ -42,4 +42,20 @@ public class TestObelixRedisStore extends TestCase {
 
     }
 
+
+    public void testReadJsonDataFormattedAsStringFromStore() {
+        String testData = "\"{\\\"file_format\\\": \\\"page_view\\\", \\\"timestamp\\\": 1431962580.7399549, \\\"item\\\": 2016165, \\\"user\\\": \\\"58335767\\\", \\\"ip\\\": \\\"188.218.111.19\\\", \\\"type\\\": \\\"events.pageviews\\\"}\"";
+
+        ObelixStore obelixStore = new RedisObelixStore();
+        obelixStore.set("key", new ObelixStoreElement(testData));
+
+    }
+
+    public void testReadValidJsonDataFromStore() {
+        String testData = "{\"file_format\": \"page_view\"}";
+
+        ObelixStore obelixStore = new RedisObelixStore();
+        obelixStore.set("key", new ObelixStoreElement(testData));
+
+    }
 }

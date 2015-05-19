@@ -12,6 +12,7 @@ public class ObelixInitTest extends TestCase {
         assertEquals(20, obelix.numberOfRelationships);
 
     }
+
     public void testSetNeo4jStoreAndNumberOfRelationships() throws Exception {
 
         Obelix.Builder obelixBuilder = new Obelix.Builder();
@@ -28,7 +29,4 @@ public class ObelixInitTest extends TestCase {
                 .createObelix();
 
     }
-
-
-
 }
