@@ -15,6 +15,11 @@ public class RedisObelixStore implements ObelixStore {
         this.redisPool = new RedisPool();
     }
 
+    public RedisObelixStore(String prefix) {
+        this.prefix = prefix;
+        this.redisPool = new RedisPool();
+    }
+
     @Override
     public void set(String key, ObelixStoreElement value)
     {

@@ -33,7 +33,6 @@ public class ObelixFeeder implements Runnable {
         this.maxRelationships = maxRelationships;
         this.graphDb = graphDb;
         this.workerID = workerID;
-
     }
 
     public void run() {

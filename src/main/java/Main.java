@@ -167,7 +167,7 @@ public class Main {
 
         (new Thread(new ObelixWebServer(graphDb, webPort, recommendationDepth, clientSettings()))).start();
 
-        (new Thread(new ObelixCache(graphDb, usersCacheQueue, new RedisObelixStore(),
+        (new Thread(new ObelixCache(graphDb, usersCacheQueue, new RedisObelixStore(redisQueuePrefix),
                 buildForAllUsersOnStartup, recommendationDepth, maxRelationships,
                 clientSettings()))).start();
 
