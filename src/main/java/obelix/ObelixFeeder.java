@@ -55,6 +55,8 @@ public class ObelixFeeder implements Runnable {
             }
         } catch (Exception e) {
             LOGGER.error("ObelixFeeder Exception", e);
+            LOGGER.info("Restarting ObelixFeeder.run()!");
+            this.run();
         }
     }
 
