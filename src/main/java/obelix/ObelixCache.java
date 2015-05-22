@@ -125,6 +125,8 @@ public class ObelixCache implements Runnable {
             }
         } catch (Exception e) {
             LOGGER.error("ObelixCache Exception", e);
+            LOGGER.info("Restarting ObelixCache.run()!");
+            this.run();
         }
     }
 
