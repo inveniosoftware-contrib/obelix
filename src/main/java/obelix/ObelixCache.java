@@ -102,7 +102,7 @@ public class ObelixCache implements Runnable {
                             makeSureTheUserDoesNotExceedMaxRelationshipsLimit(
                                     graphDb, getUserNode(graphDb, user), maxRelationships);
                         } catch (ObelixNodeNotFoundException e) {
-                            e.printStackTrace();
+                            LOGGER.error("make sure users does not exceed max limit rel", e);
                         }
                         tx.success();
                     }
