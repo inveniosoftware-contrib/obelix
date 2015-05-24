@@ -2,6 +2,7 @@ package obelix;
 
 import events.EventFactory;
 import events.NeoEvent;
+import metrics.MetricsCollector;
 import org.neo4j.cypher.EntityNotFoundException;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.NotFoundException;
@@ -17,6 +18,7 @@ import queue.interfaces.ObelixQueue;
 public class ObelixFeeder implements Runnable {
 
     private final static Logger LOGGER = LoggerFactory.getLogger(ObelixFeeder.class.getName());
+    private final MetricsCollector metricsCollector;
 
     GraphDatabaseService graphDb;
     ObelixQueue redisQueueManager;
@@ -24,10 +26,28 @@ public class ObelixFeeder implements Runnable {
     int maxRelationships;
     int workerID;
 
-    public ObelixFeeder(GraphDatabaseService graphDb, int maxRelationships,
+    public ObelixFeeder(GraphDatabaseService graphDb,
+                        MetricsCollector metricsCollector,
+                        int maxRelationships,
                         ObelixQueue redisQueueManager,
-                        ObelixQueue usersCacheQueue, int workerID) {
+                        ObelixQueue usersCacheQueue,
+                        int workerID) {
 
+        this.metricsCollector = metricsCollector;
+        this.redisQueueManager = redisQueueManager;
+        this.usersCacheQueue = usersCacheQueue;
+        this.maxRelationships = maxRelationships;
+        this.graphDb = graphDb;
+        this.workerID = workerID;
+    }
+
+    public ObelixFeeder(GraphDatabaseService graphDb,
+                        int maxRelationships,
+                        ObelixQueue redisQueueManager,
+                        ObelixQueue usersCacheQueue,
+                        int workerID) {
+
+        this.metricsCollector = null;
         this.redisQueueManager = redisQueueManager;
         this.usersCacheQueue = usersCacheQueue;
         this.maxRelationships = maxRelationships;
@@ -71,6 +91,10 @@ public class ObelixFeeder implements Runnable {
 
                 try (Transaction tx = graphDb.beginTx()) {
                     LOGGER.info("Handling event: " + event);
+
+                    if(metricsCollector != null) {
+                        metricsCollector.addAccumalativeMetricValue("feeded", 1);
+                    }
 
                     event.execute(graphDb, maxRelationships);
 

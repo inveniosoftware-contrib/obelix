@@ -75,7 +75,6 @@ public class ObelixWebServer implements Runnable {
         get("/*/*/*/users/clean-all-relationships/:max", "application/json", (request, response) ->
                 this.userGraph.cleanAllRelationships(request.params("max")), new JsonTransformer());
 
-
         // Recommendations
         get("/*/*/*/users/:userID/relationships/:depth", "application/json", (request, response) ->
                 this.userGraph.relationships(request.params("userID"), request.params("depth")), new JsonTransformer());

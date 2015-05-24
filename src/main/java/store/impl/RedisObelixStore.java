@@ -32,7 +32,8 @@ public class RedisObelixStore implements ObelixStore {
     public ObelixStoreElement get(String key) {
         try (Jedis jedis = this.redisPool.getRedis().getResource()) {
             return new ObelixStoreElement(jedis.get(this.prefix + key));
+        } catch(NullPointerException e){
+            return null;
         }
     }
-
 }
