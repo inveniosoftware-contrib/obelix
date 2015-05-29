@@ -8,7 +8,7 @@ Obelix Personalization Search Engine
 
     Quickstart <quickstart>
     How it works <how-it-works>
-
+    Metrics <metrics>
 
 
 .. include:: quickstart.rst

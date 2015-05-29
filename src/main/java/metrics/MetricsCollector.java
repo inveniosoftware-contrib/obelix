@@ -7,6 +7,7 @@ import graph.UserGraph;
 import org.json.JSONObject;
 import org.neo4j.graphdb.GraphDatabaseService;
 import queue.interfaces.ObelixQueue;
+import store.impl.InternalObelixStore;
 import store.impl.ObelixStoreElement;
 import store.impl.RedisObelixStore;
 import store.interfaces.ObelixStore;
@@ -25,17 +26,27 @@ public class MetricsCollector implements Runnable {
     private Map<String, Integer> metrics = new HashMap<>();
     private Map<String, Integer> totalMetrics = new HashMap<>();
 
-    public MetricsCollector(String metricsSaveLocation,
+    public MetricsCollector(boolean enableMetrics, String metricsSaveLocation,
                             GraphDatabaseService graphDb,
                             ObelixQueue redisQueueManager,
                             ObelixQueue usersCacheQueue) {
 
-        this.storage = new RedisObelixStore();
-        this.metricsSaveLocation = metricsSaveLocation;
-        this.graphDb = graphDb;
-        this.redisQueueManager = redisQueueManager;
-        this.usersCacheQueue = usersCacheQueue;
-        loadStoredMetrics();
+        if(!enableMetrics) {
+            this.storage = new InternalObelixStore();
+            this.metricsSaveLocation = metricsSaveLocation;
+            this.graphDb = graphDb;
+            this.redisQueueManager = redisQueueManager;
+            this.usersCacheQueue = usersCacheQueue;
+        }
+        else {
+
+            this.storage = new RedisObelixStore();
+            this.metricsSaveLocation = metricsSaveLocation;
+            this.graphDb = graphDb;
+            this.redisQueueManager = redisQueueManager;
+            this.usersCacheQueue = usersCacheQueue;
+            loadStoredMetrics();
+        }
     }
 
     private void loadStoredMetrics() {
