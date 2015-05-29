@@ -2,6 +2,7 @@ package obelix;
 
 import graph.UserGraph;
 import graph.exceptions.ObelixNodeNotFoundException;
+import metrics.MetricsCollector;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.TransactionFailureException;
@@ -25,6 +26,7 @@ public class ObelixCache implements Runnable {
 
 
     private final static Logger LOGGER = LoggerFactory.getLogger(ObelixCache.class.getName());
+    private final MetricsCollector metricsCollector;
 
     GraphDatabaseService graphDb;
     ObelixQueue redisQueueManager;
@@ -37,11 +39,30 @@ public class ObelixCache implements Runnable {
     int maxRelationships;
     boolean buildForAllUsersOnStartup;
 
-    public ObelixCache(GraphDatabaseService graphDb, ObelixQueue usersCacheQueue,
+    public ObelixCache(GraphDatabaseService graphDb, MetricsCollector metricsCollector,
+                       ObelixQueue usersCacheQueue,
                        ObelixStore obelixStore,
                        boolean buildForAllUsersOnStartup, String recommendationDepth,
                        int maxRelationships, Map<String, String> clientSettings) {
 
+        this.metricsCollector = metricsCollector;
+        this.redisStoreManager = obelixStore;
+        this.graphDb = graphDb;
+        this.redisQueueManager = usersCacheQueue;
+        this.userGraph = new UserGraph(graphDb);
+        this.buildForAllUsersOnStartup = buildForAllUsersOnStartup;
+        this.recommendationDepth = recommendationDepth;
+        this.maxRelationships = maxRelationships;
+        this.clientSettings = clientSettings;
+    }
+
+    public ObelixCache(GraphDatabaseService graphDb,
+                       ObelixQueue usersCacheQueue,
+                       ObelixStore obelixStore,
+                       boolean buildForAllUsersOnStartup, String recommendationDepth,
+                       int maxRelationships, Map<String, String> clientSettings) {
+
+        this.metricsCollector = null;
         this.redisStoreManager = obelixStore;
         this.graphDb = graphDb;
         this.redisQueueManager = usersCacheQueue;
@@ -59,7 +80,7 @@ public class ObelixCache implements Runnable {
 
     private void buildCacheForUser(String userid) {
 
-        LOGGER.info("Building cache for userid: " + userid);
+        LOGGER.info("Building recommendations for user id: " + userid);
 
         Map<String, Double> recommendations;
 
@@ -70,8 +91,12 @@ public class ObelixCache implements Runnable {
                     "recommendations::" + userid,
                     new ObelixStoreElement(jsonTransformer.render(recommendations)));
 
+            if(metricsCollector != null) {
+                this.metricsCollector.addAccumalativeMetricValue("recommendations_built", 1);
+            }
+
         } catch (ObelixNodeNotFoundException | NoSuchElementException | IllegalArgumentException e) {
-            LOGGER.info("Cache for user " + userid + " failed to build..! Can't find the user");
+            LOGGER.info("Recommendations for user " + userid + " failed to build..! Can't find the user");
         }
     }
 
@@ -121,8 +146,8 @@ public class ObelixCache implements Runnable {
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-
             }
+
         } catch (Exception e) {
             LOGGER.error("ObelixCache Exception", e);
             LOGGER.info("Restarting ObelixCache.run()!");

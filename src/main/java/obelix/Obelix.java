@@ -47,7 +47,6 @@ public class Obelix {
         this.numberOfRelationships = builder.numberOfRelationships;
         this.neo4jStore = builder.neo4jstore;
         this.redisQueueName = builder.redisQueueName != null ? builder.redisQueueName : "logentries";
-
     }
 
     public void run() {

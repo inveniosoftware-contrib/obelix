@@ -1,3 +1,4 @@
+import metrics.MetricsCollector;
 import obelix.ObelixBatchImport;
 import obelix.ObelixCache;
 import obelix.ObelixFeeder;
@@ -5,6 +6,7 @@ import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.factory.GraphDatabaseFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import queue.impl.ObelixQueueElement;
 import queue.impl.RedisObelixQueue;
 import queue.interfaces.ObelixQueue;
 import store.impl.RedisObelixStore;
@@ -13,6 +15,7 @@ import web.ObelixWebServer;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 
 public class Main {
 
@@ -34,6 +37,8 @@ public class Main {
         String neoLocation = "graph.db";
         String redisQueuePrefix = "obelix:queue:";
         String redisQueueName = "logentries";
+        String metricsSaveLocation = "obelix_metrics.json";
+
         int maxRelationships = 30;
         int workers = 1;
         int webPort = 4500;
@@ -110,13 +115,13 @@ public class Main {
         for (String arg : args) {
             if (arg.equals("--recommendation-depth")) {
                 try {
-                    int depth = Integer.parseInt(args[carg+1]);
+                    int depth = Integer.parseInt(args[carg + 1]);
 
-                    if(depth<0 || depth > 10) {
+                    if (depth < 0 || depth > 10) {
                         throw new NumberFormatException();
                     }
 
-                    recommendationDepth = args[carg+1];
+                    recommendationDepth = args[carg + 1];
 
                 } catch (NumberFormatException e) {
                     LOGGER.error("Wrong format for --recommendation-depth option, use a number from 0-10");
@@ -133,7 +138,7 @@ public class Main {
         LOGGER.info("--redis-queue-name: " + redisQueueName);
         LOGGER.info("--web-port: " + webPort);
 
-        if(batchImportAll) {
+        if (batchImportAll) {
             LOGGER.info("Starting batch import of all");
             ObelixBatchImport.run(neoLocation, redisQueueName);
             LOGGER.info("Done importing everything! woho!");
@@ -147,7 +152,7 @@ public class Main {
         registerShutdownHook(graphDb);
 
         ObelixQueue redisQueueManager = new RedisObelixQueue(redisQueuePrefix, redisQueueName);
-        ObelixQueue usersCacheQueue= new RedisObelixQueue(redisQueuePrefix, "cache:users");
+        ObelixQueue usersCacheQueue = new RedisObelixQueue(redisQueuePrefix, "cache:users");
 
         // Warm up neo4j cache
         /*
@@ -162,15 +167,38 @@ public class Main {
             System.out.println("Neo4j is warmed up!");
         }*/
 
-        (new Thread(new ObelixFeeder(graphDb, maxRelationships,
+        feedDummyData(redisQueueManager);
+
+        MetricsCollector metricsCollector =
+                new MetricsCollector(metricsSaveLocation, graphDb,
+                        redisQueueManager, usersCacheQueue);
+
+        new Thread(metricsCollector).start();
+
+        (new Thread(new ObelixFeeder(graphDb, metricsCollector, maxRelationships,
                 redisQueueManager, usersCacheQueue, 1))).start();
 
-        (new Thread(new ObelixWebServer(graphDb, webPort, recommendationDepth, clientSettings()))).start();
+        (new Thread(new ObelixWebServer(graphDb, webPort,
+                recommendationDepth, clientSettings()))).start();
 
-        (new Thread(new ObelixCache(graphDb, usersCacheQueue, new RedisObelixStore(redisQueuePrefix),
+        (new Thread(new ObelixCache(graphDb, metricsCollector, usersCacheQueue,
+                new RedisObelixStore(redisQueuePrefix),
                 buildForAllUsersOnStartup, recommendationDepth, maxRelationships,
                 clientSettings()))).start();
 
+    }
+
+    static void feedDummyData(ObelixQueue queue) {
+
+        for (int i = 0; i < 5; i++) {
+
+            String user = String.valueOf(new Random().nextInt(90000));
+            String item = String.valueOf(new Random().nextInt(90000));
+
+            String testData = "\"{\\\"file_format\\\": \\\"page_view\\\", \\\"timestamp\\\": 1431962580.7399549, \\\"item\\\": " + item + ", \\\"user\\\": " + user + ", \\\"ip\\\": \\\"188.218.111.19\\\", \\\"type\\\": \\\"events.pageviews\\\"}\"";
+
+            queue.push(new ObelixQueueElement(testData));
+        }
     }
 
     public static Map<String, String> clientSettings() {
