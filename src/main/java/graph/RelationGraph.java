@@ -71,18 +71,16 @@ public class RelationGraph {
                 } catch (NotFoundException e) {
                     LOGGER.error("Ignores one relationship, probably deleted..");
                 }
-
             }
 
-            LOGGER.info("Newest timestamp: " + newestTimestamp);
-            LOGGER.info("Oldest timestamp: " + oldestTimestamp);
+            //LOGGER.info("Newest timestamp: " + newestTimestamp);
+            //LOGGER.info("Oldest timestamp: " + oldestTimestamp);
 
             tx.success();
 
             return relations_ids;
         }
     }
-
 
     /*
     public List<String> getAllRelationsForUserGivenLabel(String nodeLabel, String nodeID, String relType,

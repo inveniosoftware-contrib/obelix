@@ -40,7 +40,7 @@ public class MetricsCollector implements Runnable {
 
     private void loadStoredMetrics() {
 
-        ObelixStoreElement obelixMetrics = this.storage.get("metrics");
+        ObelixStoreElement obelixMetrics = this.storage.get("total_metrics");
         if (obelixMetrics != null) {
 
             if (obelixMetrics.data.has("recommendations_built")) {
@@ -54,10 +54,24 @@ public class MetricsCollector implements Runnable {
         }
     }
 
-    private void saveMetrics() {
+    private void saveTotalMetrics() {
         JSONObject jsonObject = new JSONObject();
         jsonObject.put("recommendations_built", this.totalMetrics.get("recommendations_built"));
         jsonObject.put("feeded", this.totalMetrics.get("feeded"));
+        this.storage.set("total_metrics", new ObelixStoreElement(jsonObject));
+    }
+
+    private void saveMetrics() {
+        JSONObject jsonObject = new JSONObject();
+
+        for(String key : this.metrics.keySet()) {
+            jsonObject.put(key, this.metrics.get(key));
+        }
+
+        for(String key : this.totalMetrics.keySet()) {
+            jsonObject.put("total_" + key, this.totalMetrics.get(key));
+        }
+
         this.storage.set("metrics", new ObelixStoreElement(jsonObject));
     }
 
@@ -73,10 +87,9 @@ public class MetricsCollector implements Runnable {
         }
 
         saveMetrics();
+        saveTotalMetrics();
         resetMetrics();
 
-        System.out.println("METRICS");
-        System.out.println(object);
     }
 
     private void resetMetrics() {
@@ -131,16 +144,17 @@ public class MetricsCollector implements Runnable {
     public void run() {
 
         while (true) {
-            try {
-                Thread.sleep(2000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-
             addQueueStats();
             addGraphStats();
             this.printMetrics();
             //this.resetMetrics();
+
+            try {
+                // wait for 5 seconds
+                Thread.sleep(300000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
     }
 }

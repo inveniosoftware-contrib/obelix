@@ -167,6 +167,8 @@ public class Main {
             System.out.println("Neo4j is warmed up!");
         }*/
 
+        feedDummyData(redisQueueManager);
+
         MetricsCollector metricsCollector =
                 new MetricsCollector(metricsSaveLocation, graphDb,
                         redisQueueManager, usersCacheQueue);
