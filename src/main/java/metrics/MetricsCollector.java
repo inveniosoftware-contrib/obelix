@@ -38,6 +38,7 @@ public class MetricsCollector implements Runnable {
             this.redisQueueManager = redisQueueManager;
             this.usersCacheQueue = usersCacheQueue;
         }
+
         else {
 
             this.storage = new RedisObelixStore();
