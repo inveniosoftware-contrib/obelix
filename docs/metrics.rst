@@ -40,21 +40,21 @@ An example of the stored data:
     }
 
 
-`total_feeded`: Number of interactions sent to Obelix (user x viewed item y) since the beggning.
+**total_feeded**: Number of interactions sent to Obelix (user x viewed item y) since the beggning.
 
-```feeded```: The same as `total_feeded`, but the number represent the number of feeded since last time checked (typically a 5 minute interval).
+**feeded**: The same as **total_feeded**, but the number represent the number of feeded since last time checked (typically a 5 minute interval).
 
-`total_recommendations_built`: Number of recommendations built, it will be close to the number of total_feeded,
+**total_recommendations_built**: Number of recommendations built, it will be close to the number of total_feeded,
 but if a user view several items in a short amount of time, Obelix will try to only build the recommendations for that user once.
 
-`recommendations_built`: The same as total_recommendations_built, but the number represent the number of recommendations since last time checked (typically a 5 minute interval).
+**recommendations_built**: The same as total_recommendations_built, but the number represent the number of recommendations since last time checked (typically a 5 minute interval).
 
-`all_relationships_count`: The current number of relationships in Obelix
+**all_relationships_count**: The current number of relationships in Obelix
 
-`all_users_count`: The current number of users in Obelix
+**all_users_count**: The current number of users in Obelix
 
-`all_items_count`: The current number of items in Obelix
+**all_items_count**: The current number of items in Obelix
 
-`cache_queue_size`: The number of items in the cache queue (to build recommendations).
+**cache_queue_size**: The number of items in the cache queue (to build recommendations).
 
-`logentries_queue_size`: The number of items in the queue ready for feeding.
+**logentries_queue_size**: The number of items in the queue ready for feeding.
