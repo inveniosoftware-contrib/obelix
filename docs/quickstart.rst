@@ -54,6 +54,9 @@ However, for most projects it is required to configure more options.
     # Tell Obelix to rebuild all recommendations
     --build-cache-for-all-users-on-startup
 
+    # Enable Metrics
+    --enable-metrics
+
 Running Obelix as a Daemon (background service) on Ubuntu 14.04
 --------------------------
 In a production environment it is wise to run Obelix as a background service.

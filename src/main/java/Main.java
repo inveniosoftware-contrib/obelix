@@ -38,7 +38,7 @@ public class Main {
         String redisQueuePrefix = "obelix:queue:";
         String redisQueueName = "logentries";
         String metricsSaveLocation = "obelix_metrics.json";
-
+        boolean enableMetrics = false;
         int maxRelationships = 30;
         int workers = 1;
         int webPort = 4500;
@@ -63,6 +63,14 @@ public class Main {
         for (String arg : args) {
             if (arg.equals("--workers")) {
                 workers = Integer.parseInt(args[carg + 1]);
+            }
+            carg += 1;
+        }
+
+        carg = 0;
+        for (String arg : args) {
+            if (arg.equals("--enable-metrics")) {
+                enableMetrics = true;
             }
             carg += 1;
         }
@@ -169,11 +177,14 @@ public class Main {
 
         feedDummyData(redisQueueManager);
 
-        MetricsCollector metricsCollector =
-                new MetricsCollector(metricsSaveLocation, graphDb,
-                        redisQueueManager, usersCacheQueue);
+        MetricsCollector metricsCollector = new MetricsCollector(
+                enableMetrics,
+                metricsSaveLocation, graphDb,
+                redisQueueManager, usersCacheQueue);
 
-        new Thread(metricsCollector).start();
+        if (enableMetrics) {
+            new Thread(metricsCollector).start();
+        }
 
         (new Thread(new ObelixFeeder(graphDb, metricsCollector, maxRelationships,
                 redisQueueManager, usersCacheQueue, 1))).start();
