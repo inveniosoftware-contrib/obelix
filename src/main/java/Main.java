@@ -31,9 +31,8 @@ public class Main {
     }
 
     public static void main(String... args) {
-        LOGGER.info("Starting Obelix:main");
-
-
+        LOGGER.warn("Restarting Obelix:main");
+        
         String neoLocation = "graph.db";
         String redisQueuePrefix = "obelix:queue:";
         String redisQueueName = "logentries";
