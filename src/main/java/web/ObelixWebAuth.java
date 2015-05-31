@@ -19,8 +19,9 @@ public class ObelixWebAuth {
     public static boolean tokenIsValid(String service, String user, String token) {
         String key = service+"-"+user;
         Map<String, String> validTokens = new HashMap<>();
-        
-        return validTokens.containsKey(key) && validTokens.get(key).equals(token);
+
+        return true;
+        //return validTokens.containsKey(key) && validTokens.get(key).equals(token);
     }
 
     public static void requireValidToken() {
