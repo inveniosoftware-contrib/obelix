@@ -4,6 +4,7 @@ import obelix.ObelixCache;
 import obelix.ObelixFeeder;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.factory.GraphDatabaseFactory;
+import org.neo4j.kernel.GraphDatabaseAPI;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import queue.impl.ObelixQueueElement;
@@ -11,6 +12,11 @@ import queue.impl.RedisObelixQueue;
 import queue.interfaces.ObelixQueue;
 import store.impl.RedisObelixStore;
 import web.ObelixWebServer;
+
+import org.neo4j.kernel.GraphDatabaseAPI;
+import org.neo4j.server.WrappingNeoServerBootstrapper;
+import org.neo4j.server.configuration.Configurator;
+import org.neo4j.server.configuration.ServerConfigurator;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -32,7 +38,7 @@ public class Main {
 
     public static void main(String... args) {
         LOGGER.warn("Restarting Obelix:main");
-        
+
         String neoLocation = "graph.db";
         String redisQueuePrefix = "obelix:queue:";
         String redisQueueName = "logentries";
@@ -41,6 +47,7 @@ public class Main {
         int maxRelationships = 30;
         int workers = 1;
         int webPort = 4500;
+        int configNeo4jWebPort = 7575;
 
         int carg = 0;
         for (String arg : args) {
@@ -99,7 +106,6 @@ public class Main {
         }
 
         boolean batchImportAll = false;
-
         carg = 0;
         for (String arg : args) {
             if (arg.equals("--batch-import-all")) {
@@ -107,8 +113,22 @@ public class Main {
             }
             carg += 1;
         }
-        boolean buildForAllUsersOnStartup = false;
 
+        boolean enableNeo4jWebServer = false;
+        carg = 0;
+        for (String arg : args) {
+            if (arg.equals("--neo4j-webserver")) {
+                enableNeo4jWebServer = true;
+                try {
+                    configNeo4jWebPort = Integer.parseInt(args[carg + 1]);
+                } catch(NumberFormatException | NullPointerException | ArrayIndexOutOfBoundsException e) {
+                }
+                break;
+            }
+            carg += 1;
+        }
+
+        boolean buildForAllUsersOnStartup = false;
         carg = 0;
         for (String arg : args) {
             if (arg.equals("--build-cache-for-all-users-on-startup")) {
@@ -157,6 +177,23 @@ public class Main {
                 .newGraphDatabase();
 
         registerShutdownHook(graphDb);
+
+        if (enableNeo4jWebServer) {
+            // Start Neo4jWebserver
+            // Deprecated but useful for debugging and exploring the database
+            LOGGER.info("Starting Neo4j WebServer on 127.0.0.1 Port: " + configNeo4jWebPort);
+            WrappingNeoServerBootstrapper neoServerBootstrapper;
+            GraphDatabaseAPI api = (GraphDatabaseAPI) graphDb;
+
+            ServerConfigurator config = new ServerConfigurator(api);
+            config.configuration()
+                    .addProperty(Configurator.WEBSERVER_ADDRESS_PROPERTY_KEY, "127.0.0.1");
+            config.configuration()
+                    .addProperty(Configurator.WEBSERVER_PORT_PROPERTY_KEY, configNeo4jWebPort);
+
+            neoServerBootstrapper = new WrappingNeoServerBootstrapper(api, config);
+            neoServerBootstrapper.start();
+        }
 
         ObelixQueue redisQueueManager = new RedisObelixQueue(redisQueuePrefix, redisQueueName);
         ObelixQueue usersCacheQueue = new RedisObelixQueue(redisQueuePrefix, "cache:users");

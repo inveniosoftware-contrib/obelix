@@ -57,6 +57,9 @@ However, for most projects it is required to configure more options.
     # Enable Metrics
     --enable-metrics
 
+    # Enable Neo4j web server on localhost, for debugging and exploring the database only. PORT is optional, default is 7575.
+    --neo4j-webserver PORT
+
 Running Obelix as a Daemon (background service) on Ubuntu 14.04
 --------------------------
 In a production environment it is wise to run Obelix as a background service.
