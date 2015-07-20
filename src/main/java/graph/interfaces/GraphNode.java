@@ -1,7 +1,7 @@
 package graph.interfaces;
 
 
-public interface ObelixGraphNode {
+public interface GraphNode {
 
     String getID();
     String getNeighbors();

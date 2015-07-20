@@ -210,11 +210,10 @@ public class NeoHelpers {
         }
 
         if(duplicatesRemoved > 0 || oldRemoved > 0) {
-            LOGGER.info("Cleans up relationships for "
+            LOGGER.debug("Cleans up relationships for "
                             + currentUser + " deletes: "
                             + duplicatesRemoved + " duplicates and "
                             + oldRemoved + " old relationships");
-
         }
 
     }

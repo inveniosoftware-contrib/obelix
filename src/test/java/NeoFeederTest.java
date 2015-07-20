@@ -1,6 +1,8 @@
-import graph.UserGraph;
+import graph.impl.NeoGraphDatabase;
+import graph.interfaces.GraphDatabase;
 import junit.framework.TestCase;
 import obelix.ObelixFeeder;
+import obelix.impl.ObelixRecommender;
 import org.json.JSONObject;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.test.TestGraphDatabaseFactory;
@@ -12,18 +14,19 @@ import java.util.HashMap;
 
 public class NeoFeederTest extends TestCase {
 
-    GraphDatabaseService graphDb;
+    GraphDatabaseService neoDb;
+    GraphDatabase graphDb;
     ObelixQueue obelixQueue;
     ObelixQueue obelixCacheQueue;
 
     public void tearDown() throws Exception {
-        graphDb.shutdown();
+        neoDb.shutdown();
     }
 
     public void setUp() throws Exception {
         super.setUp();
-
-        graphDb = new TestGraphDatabaseFactory().newImpermanentDatabase();
+        neoDb = new TestGraphDatabaseFactory().newImpermanentDatabase();
+        graphDb = new NeoGraphDatabase(neoDb);
         obelixQueue = new InternalObelixQueue();
         obelixCacheQueue = new InternalObelixQueue();
 
@@ -40,7 +43,7 @@ public class NeoFeederTest extends TestCase {
     public void testInsertOneRelationship() throws Exception {
         ObelixFeeder obelixFeeder = new ObelixFeeder(graphDb, 10, obelixQueue, obelixCacheQueue, 1);
         obelixFeeder.feed();
-        assertEquals(new UserGraph(graphDb).allRelationships("1").size(), 1);
+        assertEquals(graphDb.getRelationships("1", "1", null, null, false).size(), 1);
     }
 
     public void testTwoRelationships() throws Exception {
@@ -54,7 +57,7 @@ public class NeoFeederTest extends TestCase {
 
         ObelixFeeder obelixFeeder = new ObelixFeeder(graphDb, 10, obelixQueue, obelixCacheQueue, 1);
         obelixFeeder.feed();
-        assertEquals(new UserGraph(graphDb).allRelationships("1").size(), 2);
+        assertEquals(graphDb.getRelationships("1", "1", null, null, false).size(), 2);
     }
 
     public void testRecommendWhenWithOnlyTwoRelationships() throws Exception {
@@ -74,7 +77,7 @@ public class NeoFeederTest extends TestCase {
         result.put("1", 1.0);
         result.put("2", 1.0);
 
-        assertEquals(result, new UserGraph(graphDb).recommend("1"));
+        assertEquals(result, new ObelixRecommender(graphDb).recommend("1"));
     }
 
     public void testRecommendationsWithTwoUsersAndThreeRelationships() throws Exception {
@@ -100,8 +103,8 @@ public class NeoFeederTest extends TestCase {
         HashMap<String, Double> result = new HashMap<>();
         result.put("1", 1.0);
         result.put("2", 1.0);
-        assertNotSame(result, new UserGraph(graphDb).recommend("1"));
-        assertTrue(new UserGraph(graphDb).recommend("1").get("1") > new UserGraph(graphDb).recommend("1").get("2"));
+        assertNotSame(result, new ObelixRecommender(graphDb).recommend("1"));
+        assertTrue(new ObelixRecommender(graphDb).recommend("1").get("1") > new ObelixRecommender(graphDb).recommend("1").get("2"));
 
     }
 
@@ -125,7 +128,7 @@ public class NeoFeederTest extends TestCase {
         result.put("1", 1.0);
         result.put("2", 1.0);
 
-        assertEquals(result, new UserGraph(graphDb).recommend("1"));
+        assertEquals(result, new ObelixRecommender(graphDb).recommend("1"));
     }
 
 

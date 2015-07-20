@@ -1,6 +1,8 @@
 package events;
 
 import com.google.api.client.util.Key;
+import graph.exceptions.ObelixInsertException;
+import graph.interfaces.GraphDatabase;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
 
@@ -38,13 +40,9 @@ public class Download implements NeoEvent {
     }
 
     @Override
-    public void execute(GraphDatabaseService graphDb, int maxRelationships) {
-        Node user = NeoHelpers.getOrCreateUserNode(graphDb, this.user);
-        Node item = NeoHelpers.getOrCreateItemNode(graphDb, this.item);
-
-        NeoHelpers.createRealationship(graphDb, user, item,
-                getTimestamp(), NeoHelpers.RelTypes.VIEWED, maxRelationships);
-
+    public void execute(GraphDatabase graphDb, int maxRelationships) throws ObelixInsertException{
+        //Fixme: Why VIEWED?
+        graphDb.createNodeNodeRelationship(this.user, this.item, NeoHelpers.RelTypes.VIEWED, getTimestamp(), maxRelationships);
     }
 
     @Override

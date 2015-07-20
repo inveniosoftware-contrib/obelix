@@ -2,6 +2,8 @@ package obelix;
 
 import events.EventFactory;
 import events.NeoEvent;
+import graph.exceptions.ObelixInsertException;
+import graph.interfaces.GraphDatabase;
 import metrics.MetricsCollector;
 import org.neo4j.cypher.EntityNotFoundException;
 import org.neo4j.graphdb.GraphDatabaseService;
@@ -20,13 +22,13 @@ public class ObelixFeeder implements Runnable {
     private final static Logger LOGGER = LoggerFactory.getLogger(ObelixFeeder.class.getName());
     private final MetricsCollector metricsCollector;
 
-    GraphDatabaseService graphDb;
+    GraphDatabase graphDb;
     ObelixQueue redisQueueManager;
     ObelixQueue usersCacheQueue;
     int maxRelationships;
     int workerID;
 
-    public ObelixFeeder(GraphDatabaseService graphDb,
+    public ObelixFeeder(GraphDatabase graphDb,
                         MetricsCollector metricsCollector,
                         int maxRelationships,
                         ObelixQueue redisQueueManager,
@@ -41,18 +43,13 @@ public class ObelixFeeder implements Runnable {
         this.workerID = workerID;
     }
 
-    public ObelixFeeder(GraphDatabaseService graphDb,
+    public ObelixFeeder(GraphDatabase graphDb,
                         int maxRelationships,
                         ObelixQueue redisQueueManager,
                         ObelixQueue usersCacheQueue,
                         int workerID) {
 
-        this.metricsCollector = null;
-        this.redisQueueManager = redisQueueManager;
-        this.usersCacheQueue = usersCacheQueue;
-        this.maxRelationships = maxRelationships;
-        this.graphDb = graphDb;
-        this.workerID = workerID;
+        this(graphDb, null, maxRelationships, redisQueueManager, usersCacheQueue, workerID);
     }
 
     public void run() {
@@ -81,50 +78,31 @@ public class ObelixFeeder implements Runnable {
 
     public boolean feed() {
         int count = 0;
-
         ObelixQueueElement result = redisQueueManager.pop();
 
         while (result != null) {
             NeoEvent event = EventFactory.build(result.data.toString());
 
             if (event != null) {
+                LOGGER.debug("Handling event: " + event);
 
-                try (Transaction tx = graphDb.beginTx()) {
-                    LOGGER.info("Handling event: " + event);
+                if(metricsCollector != null) {
+                    metricsCollector.addAccumalativeMetricValue("feeded", 1);
+                }
 
-                    if(metricsCollector != null) {
-                        metricsCollector.addAccumalativeMetricValue("feeded", 1);
-                    }
-
+                try {
                     event.execute(graphDb, maxRelationships);
-
-                    // Tell Obelix to rebuild the cache for the user in this event!
-                    // This will maintain the caches for all active users
-
-                    if (!usersCacheQueue.getAll().contains(new ObelixQueueElement("user_id", event.getUser()))) {
-                        usersCacheQueue.push(new ObelixQueueElement("user_id", event.getUser()));
-                    }
-
-                    tx.success();
-
-                } catch (TransactionFailureException e) {
-                    LOGGER.error("TransactionFailureException, need to restart");
-                    redisQueueManager.push(result);
-                    //System.exit(0);
-                } catch (NotFoundException e) {
-                    LOGGER.error("Not found exception, pushing the element back on the queue. " + e.getMessage() + ": " + result);
-                    redisQueueManager.push(result);
-                    return true;
-                } catch (DeadlockDetectedException e) {
-                    LOGGER.error("Deadlock found exception, pushing the element back on the queue" + e.getMessage() + ": " + result);
-                    redisQueueManager.push(result);
-                    return true;
-                } catch (EntityNotFoundException e) {
-                    LOGGER.error("EntityNotFoundException, pushing the element back on the queue" + e.getMessage() + ": " + result);
+                } catch (ObelixInsertException e) {
+                    LOGGER.error("Insert error, pushing the element back on the queue. : " + result);
                     redisQueueManager.push(result);
                     return true;
                 }
 
+                // Tell Obelix to rebuild the cache for the user in this event!
+                // This will maintain the caches for all active users
+                if (!usersCacheQueue.getAll().contains(new ObelixQueueElement("user_id", event.getUser()))) {
+                    usersCacheQueue.push(new ObelixQueueElement("user_id", event.getUser()));
+                }
                 count += 1;
 
                 if (count % 1000 == 0) {
@@ -133,6 +111,7 @@ public class ObelixFeeder implements Runnable {
             }
             result = redisQueueManager.pop();
         }
+        LOGGER.info("WorkerID: " + workerID + " imported " + count + " entries from redis");
         return false;
     }
 }

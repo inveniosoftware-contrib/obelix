@@ -1,13 +1,13 @@
 package graph.impl;
 
-import graph.interfaces.ObelixGraphNode;
+import graph.interfaces.GraphNode;
 
-public abstract class NeoGraphNode implements ObelixGraphNode {
+public abstract class NeoGraphNode implements GraphNode {
 
-    final NeoObelixGraphDatabase neoObelixGraphDatabase;
+    final NeoGraphDatabase neoObelixGraphDatabase;
     final String id;
 
-    public NeoGraphNode(NeoObelixGraphDatabase neoObelixGraphDatabase, String id) {
+    public NeoGraphNode(NeoGraphDatabase neoObelixGraphDatabase, String id) {
         this.neoObelixGraphDatabase = neoObelixGraphDatabase;
         this.id = id;
     }

@@ -1,4 +1,6 @@
 import events.NeoHelpers;
+import graph.impl.NeoGraphDatabase;
+import graph.interfaces.GraphDatabase;
 import junit.framework.TestCase;
 import obelix.ObelixFeeder;
 import org.json.JSONObject;
@@ -12,23 +14,25 @@ import java.util.List;
 
 public class TestNeoHelpers extends TestCase {
 
-    GraphDatabaseService graphDb;
+    GraphDatabaseService neoDb;
+    GraphDatabase graphDb;
     ObelixQueue obelixQueue;
     ObelixQueue obelixCacheQueue;
 
     public void tearDown() throws Exception {
-        graphDb.shutdown();
+        neoDb.shutdown();
     }
 
     public void setUp() throws Exception {
         super.setUp();
-        graphDb = new TestGraphDatabaseFactory().newImpermanentDatabase();
+        neoDb = new TestGraphDatabaseFactory().newImpermanentDatabase();
+        graphDb = new NeoGraphDatabase(neoDb);
         obelixQueue = new InternalObelixQueue();
         obelixCacheQueue = new InternalObelixQueue();
     }
 
     public void testGetAllNodesReturnsEmptyListWHenNothingIsInserted() {
-        List<String> allNodes = NeoHelpers.getAllNodes(graphDb, "User");
+        List<String> allNodes = NeoHelpers.getAllNodes(neoDb, "User");
         assertEquals(allNodes.size(), 0);
     }
 
@@ -44,10 +48,10 @@ public class TestNeoHelpers extends TestCase {
         ObelixFeeder obelixFeeder = new ObelixFeeder(graphDb, 10, obelixQueue, obelixCacheQueue, 1);
         obelixFeeder.feed();
 
-        List<String> allUsers = NeoHelpers.getAllNodes(graphDb, "User");
+        List<String> allUsers = NeoHelpers.getAllNodes(neoDb, "User");
         assertEquals(allUsers.size(), 1);
 
-        List<String> allItems = NeoHelpers.getAllNodes(graphDb, "Item");
+        List<String> allItems = NeoHelpers.getAllNodes(neoDb, "Item");
         assertEquals(allItems.size(), 1);
 
     }
@@ -71,10 +75,10 @@ public class TestNeoHelpers extends TestCase {
         ObelixFeeder obelixFeeder = new ObelixFeeder(graphDb, 10, obelixQueue, obelixCacheQueue, 1);
         obelixFeeder.feed();
 
-        List<String> allUsers = NeoHelpers.getAllNodes(graphDb, "User");
+        List<String> allUsers = NeoHelpers.getAllNodes(neoDb, "User");
         assertEquals(allUsers.size(), 1);
 
-        List<String> allItems = NeoHelpers.getAllNodes(graphDb, "Item");
+        List<String> allItems = NeoHelpers.getAllNodes(neoDb, "Item");
         assertEquals(allItems.size(), 2);
 
     }

@@ -1,7 +1,8 @@
 package events;
 
 
-import org.neo4j.graphdb.GraphDatabaseService;
+import graph.exceptions.ObelixInsertException;
+import graph.interfaces.GraphDatabase;
 
 public interface NeoEvent {
 
@@ -11,6 +12,6 @@ public interface NeoEvent {
     public String getTimestamp();
 
     public boolean validate();
-    public void execute(GraphDatabaseService graphDb, int maxRelationships);
+    public void execute(GraphDatabase graphDb, int maxRelationships) throws ObelixInsertException;
 
 }

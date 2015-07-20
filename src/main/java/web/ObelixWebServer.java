@@ -1,13 +1,13 @@
 package web;
 
 import graph.ItemGraph;
-import graph.RelationGraph;
-import graph.UserGraph;
 import graph.exceptions.ObelixNodeNotFoundException;
+import graph.interfaces.GraphDatabase;
+import obelix.impl.ObelixRecommender;
+import obelix.interfaces.Recommender;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.neo4j.graphdb.DynamicLabel;
-import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,21 +28,19 @@ public class ObelixWebServer implements Runnable {
     public static final Label LABEL_ITEM = DynamicLabel.label("Item");
     public static final Label LABEL_USER = DynamicLabel.label("User");
 
-    GraphDatabaseService graphDb;
-    UserGraph userGraph;
+    GraphDatabase graphDb;
     ItemGraph itemsGraph;
-    RelationGraph relationGraph;
+    Recommender obelixRecommender;
     Map<String, String> clientSettings;
     int webPort;
     String recommendationDepth;
 
-    public ObelixWebServer(GraphDatabaseService graphdb, int webPort, String recommendationDepth,
+    public ObelixWebServer(GraphDatabase graphdb, int webPort, String recommendationDepth,
                            Map<String, String> clientSettings)  {
 
         this.graphDb = graphdb;
-        this.userGraph = new UserGraph(graphdb);
         this.itemsGraph = new ItemGraph(graphdb);
-        this.relationGraph = new RelationGraph(graphdb);
+        this.obelixRecommender = new ObelixRecommender(graphDb);
         this.webPort = webPort;
         this.recommendationDepth = recommendationDepth;
         this.clientSettings = clientSettings;
@@ -59,42 +57,42 @@ public class ObelixWebServer implements Runnable {
         // All users, items, relationships
 
         get("/*/*/*/users/all", "application/json", (request, response) ->
-                this.userGraph.getAll(), new JsonTransformer());
+                this.graphDb.getAllUserIds(), new JsonTransformer());
 
         get("/*/*/*/items/all", "application/json", (request, response) ->
                 this.itemsGraph.getAll(), new JsonTransformer());
 
         get("/*/*/*/relationships/all", "application/json", (request, response) ->
-                this.relationGraph.getAll(), new JsonTransformer());
+                this.graphDb.getAllRelationships_(), new JsonTransformer());
 
         // clean the relationships for users
         get("/*/*/*/users/:userID/relationships/clean/:max", "application/json", (request, response) ->
-                this.userGraph.cleanRelationships(request.params("userID"),
+                this.graphDb.cleanRelationships(request.params("userID"),
                         request.params("max")));
 
         get("/*/*/*/users/clean-all-relationships/:max", "application/json", (request, response) ->
-                this.userGraph.cleanAllRelationships(request.params("max")), new JsonTransformer());
+                this.graphDb.cleanAllRelationships(request.params("max")), new JsonTransformer());
 
         // Recommendations
         get("/*/*/*/users/:userID/relationships/:depth", "application/json", (request, response) ->
-                this.userGraph.relationships(request.params("userID"), request.params("depth")), new JsonTransformer());
+                this.graphDb.getRelationships(request.params("userID"), request.params("depth"), null, null, false), new JsonTransformer());
 
         get("/*/*/*/users/:userID/all-relationships", "application/json", (request, response) ->
-                this.userGraph.allRelationships(request.params("userID")), new JsonTransformer());
+                this.graphDb.getRelationships(request.params("userID"), "4", null, null, false), new JsonTransformer());
 
         get("/*/*/*/users/:userID/relationships/:depth/:since/:until", "application/json", (request, response) ->
-                this.userGraph.relationships(
+                this.graphDb.getRelationships(
                         request.params("userID"), request.params("depth"),
-                        request.params("since"), request.params("until")), new JsonTransformer());
+                        request.params("since"), request.params("until"), false), new JsonTransformer());
 
         get("/*/*/*/users/:userID/recommend/:depth", "application/json", (request, response) ->
-                this.userGraph.recommend(request.params("userID"), request.params("depth")), new JsonTransformer());
+                this.obelixRecommender.recommend(request.params("userID"), request.params("depth")), new JsonTransformer());
 
         get("/*/*/*/users/:userID/recommend", "application/json", (request, response) ->
-                this.userGraph.recommend(request.params("userID"), recommendationDepth), new JsonTransformer());
+                this.obelixRecommender.recommend(request.params("userID"), recommendationDepth), new JsonTransformer());
 
         get("/*/*/*/users/:userID/recommend/:depth/:since/:until/:importanceFactor", "application/json", (request, response) ->
-                this.userGraph.recommend(
+                this.obelixRecommender.recommend(
                         request.params("userID"), request.params("depth"),
                         request.params("since"), request.params("until"),
                         request.params("importanceFactor")), new JsonTransformer());

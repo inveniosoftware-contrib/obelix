@@ -1,7 +1,9 @@
-import graph.UserGraph;
+import graph.impl.NeoGraphDatabase;
+import graph.interfaces.GraphDatabase;
 import junit.framework.TestCase;
 import obelix.ObelixCache;
 import obelix.ObelixFeeder;
+import obelix.impl.ObelixRecommender;
 import org.json.JSONObject;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.test.TestGraphDatabaseFactory;
@@ -18,19 +20,21 @@ import java.util.HashMap;
 
 public class CacheBuilderTest extends TestCase {
 
-    GraphDatabaseService graphDb;
+    GraphDatabaseService neoDb;
+    GraphDatabase graphDb;
     ObelixQueue obelixQueue;
     ObelixQueue obelixCacheQueue;
     ObelixStore obelixStore;
 
     public void tearDown() throws Exception {
-        graphDb.shutdown();
+        neoDb.shutdown();
     }
 
     public void setUp() throws Exception {
         super.setUp();
 
-        graphDb = new TestGraphDatabaseFactory().newImpermanentDatabase();
+        neoDb = new TestGraphDatabaseFactory().newImpermanentDatabase();
+        graphDb = new NeoGraphDatabase(neoDb);
         obelixQueue = new InternalObelixQueue();
         obelixStore = new InternalObelixStore();
         obelixCacheQueue = new InternalObelixQueue();
@@ -48,7 +52,7 @@ public class CacheBuilderTest extends TestCase {
         ObelixFeeder obelixFeeder = new ObelixFeeder(graphDb, 10, obelixQueue, obelixCacheQueue, 1);
         ObelixCache obelixCache = new ObelixCache(graphDb, obelixCacheQueue, obelixStore, false, "10", 10, new HashMap<>());
         obelixFeeder.feed();
-        assertEquals(new UserGraph(graphDb).allRelationships("1").size(), 1);
+        assertEquals(graphDb.getRelationships("1", "1", null, null, false).size(), 1);
         assertEquals(obelixCacheQueue.getAll().size(), 1);
         obelixCache.buildCacheFromCacheQueue();
         assertEquals(obelixCacheQueue.getAll().size(), 0);
@@ -58,13 +62,13 @@ public class CacheBuilderTest extends TestCase {
         ObelixFeeder obelixFeeder = new ObelixFeeder(graphDb, 10, obelixQueue, obelixCacheQueue, 1);
         ObelixCache obelixCache = new ObelixCache(graphDb, obelixCacheQueue, obelixStore, false, "10", 10, new HashMap<>());
         obelixFeeder.feed();
-        assertEquals(new UserGraph(graphDb).allRelationships("1").size(), 1);
+        assertEquals(graphDb.getRelationships("1", "1", null, null, false).size(), 1);
         obelixCache.buildCacheFromCacheQueue();
 
         JsonTransformer jsonTransformer = new JsonTransformer();
 
         assertEquals(
-                new ObelixStoreElement(jsonTransformer.render(new UserGraph(graphDb).recommend("1"))),
+                new ObelixStoreElement(jsonTransformer.render(new ObelixRecommender(graphDb).recommend("1"))),
                 obelixStore.get("recommendations::1"));
 
     }
@@ -83,13 +87,13 @@ public class CacheBuilderTest extends TestCase {
         ObelixFeeder obelixFeeder = new ObelixFeeder(graphDb, 10, obelixQueue, obelixCacheQueue, 1);
         ObelixCache obelixCache = new ObelixCache(graphDb, obelixCacheQueue, obelixStore, false, "10", 10, new HashMap<>());
         obelixFeeder.feed();
-        assertEquals(new UserGraph(graphDb).allRelationships("2").size(), 1);
+        assertEquals(graphDb.getRelationships("2", "1", null, null, false).size(), 1);
         obelixCache.buildCacheFromCacheQueue();
 
         JsonTransformer jsonTransformer = new JsonTransformer();
 
         assertEquals(
-                new ObelixStoreElement(jsonTransformer.render(new UserGraph(graphDb).recommend("2"))),
+                new ObelixStoreElement(jsonTransformer.render(new ObelixRecommender(graphDb).recommend("2"))),
                 obelixStore.get("recommendations::2"));
     }
 }

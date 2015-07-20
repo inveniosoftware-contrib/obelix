@@ -1,10 +1,10 @@
+import graph.impl.NeoGraphDatabase;
+import graph.interfaces.GraphDatabase;
 import metrics.MetricsCollector;
 import obelix.ObelixBatchImport;
 import obelix.ObelixCache;
 import obelix.ObelixFeeder;
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.factory.GraphDatabaseFactory;
-import org.neo4j.kernel.GraphDatabaseAPI;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import queue.impl.ObelixQueueElement;
@@ -13,10 +13,6 @@ import queue.interfaces.ObelixQueue;
 import store.impl.RedisObelixStore;
 import web.ObelixWebServer;
 
-import org.neo4j.kernel.GraphDatabaseAPI;
-import org.neo4j.server.WrappingNeoServerBootstrapper;
-import org.neo4j.server.configuration.Configurator;
-import org.neo4j.server.configuration.ServerConfigurator;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -26,15 +22,6 @@ import java.util.Random;
 public class Main {
 
     private final static Logger LOGGER = LoggerFactory.getLogger(Main.class.getName());
-
-    private static void registerShutdownHook(final GraphDatabaseService graphDb) {
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-            @Override
-            public void run() {
-                graphDb.shutdown();
-            }
-        });
-    }
 
     public static void main(String... args) {
         LOGGER.warn("Restarting Obelix:main");
@@ -172,44 +159,11 @@ public class Main {
             System.exit(0);
         }
 
-        GraphDatabaseService graphDb = new GraphDatabaseFactory()
-                .newEmbeddedDatabaseBuilder(neoLocation)
-                .newGraphDatabase();
-
-        registerShutdownHook(graphDb);
-
-        if (enableNeo4jWebServer) {
-            // Start Neo4jWebserver
-            // Deprecated but useful for debugging and exploring the database
-            LOGGER.info("Starting Neo4j WebServer on 127.0.0.1 Port: " + configNeo4jWebPort);
-            WrappingNeoServerBootstrapper neoServerBootstrapper;
-            GraphDatabaseAPI api = (GraphDatabaseAPI) graphDb;
-
-            ServerConfigurator config = new ServerConfigurator(api);
-            config.configuration()
-                    .addProperty(Configurator.WEBSERVER_ADDRESS_PROPERTY_KEY, "127.0.0.1");
-            config.configuration()
-                    .addProperty(Configurator.WEBSERVER_PORT_PROPERTY_KEY, configNeo4jWebPort);
-
-            neoServerBootstrapper = new WrappingNeoServerBootstrapper(api, config);
-            neoServerBootstrapper.start();
-        }
+        GraphDatabase graphDb = new NeoGraphDatabase(neoLocation, enableNeo4jWebServer);
 
         ObelixQueue redisQueueManager = new RedisObelixQueue(redisQueuePrefix, redisQueueName);
         ObelixQueue usersCacheQueue = new RedisObelixQueue(redisQueuePrefix, "cache:users");
 
-        // Warm up neo4j cache
-        /*
-        try (Transaction tx = graphDb.beginTx()) {
-            for (Node n : GlobalGraphOperations.at(graphDb).getAllNodes()) {
-                n.getPropertyKeys();
-                for (Relationship relationship : n.getRelationships()) {
-                    Node start = relationship.getStartNode();
-                }
-            }
-            tx.success();
-            System.out.println("Neo4j is warmed up!");
-        }*/
 
         MetricsCollector metricsCollector = new MetricsCollector(
                 enableMetrics,

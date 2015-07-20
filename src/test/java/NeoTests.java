@@ -1,5 +1,3 @@
-import graph.impl.NeoObelixGraphDatabase;
-import graph.interfaces.ObelixGraphDatabase;
 import junit.framework.TestCase;
 
 public class NeoTests  extends TestCase {
@@ -9,6 +7,6 @@ public class NeoTests  extends TestCase {
     }
 
     public void testRun() throws Exception {
-        ObelixGraphDatabase obelixGraphDatabase = new NeoObelixGraphDatabase();
+        //GraphDatabase obelixGraphDatabase = new NeoGraphDatabase();
     }
 }

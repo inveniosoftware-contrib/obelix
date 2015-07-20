@@ -2,15 +2,13 @@ package metrics;
 
 import com.google.gson.JsonObject;
 import graph.ItemGraph;
-import graph.RelationGraph;
-import graph.UserGraph;
 import org.json.JSONObject;
-import org.neo4j.graphdb.GraphDatabaseService;
 import queue.interfaces.ObelixQueue;
 import store.impl.InternalObelixStore;
 import store.impl.ObelixStoreElement;
 import store.impl.RedisObelixStore;
 import store.interfaces.ObelixStore;
+import graph.interfaces.GraphDatabase;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -18,7 +16,7 @@ import java.util.Map;
 public class MetricsCollector implements Runnable {
 
     private final String metricsSaveLocation;
-    private final GraphDatabaseService graphDb;
+    private final GraphDatabase graphDb;
     private final ObelixQueue redisQueueManager;
     private final ObelixQueue usersCacheQueue;
     private final ObelixStore storage;
@@ -27,7 +25,7 @@ public class MetricsCollector implements Runnable {
     private Map<String, Integer> totalMetrics = new HashMap<>();
 
     public MetricsCollector(boolean enableMetrics, String metricsSaveLocation,
-                            GraphDatabaseService graphDb,
+                            GraphDatabase graphDb,
                             ObelixQueue redisQueueManager,
                             ObelixQueue usersCacheQueue) {
 
@@ -143,13 +141,11 @@ public class MetricsCollector implements Runnable {
     }
 
     private synchronized void addGraphStats() {
-        UserGraph userGraph = new UserGraph(graphDb);
-        RelationGraph relationGraph = new RelationGraph(graphDb);
         ItemGraph itemGraph = new ItemGraph(graphDb);
 
-        addStaticMetricValue("all_users_count", userGraph.getAll().size());
+        addStaticMetricValue("all_users_count", graphDb.getAllUserIds().size());
         addStaticMetricValue("all_items_count", itemGraph.getAll().size());
-        addStaticMetricValue("all_relationships_count", relationGraph.getAll().size());
+        addStaticMetricValue("all_relationships_count", graphDb.getAllRelationships_().size());
     }
 
     @Override
