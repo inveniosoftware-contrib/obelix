@@ -1,0 +1,23 @@
+web:
+    build: .
+    ports:
+      - "4000:4000"
+      - "7575:7575"
+    environment:
+      - OBELIX_REDIS_HOST=cache
+      - OBELIX_PARAMETER=--neo4j-webserver
+    volumes_from:
+      - data
+    links:
+      - redis:cache
+
+redis:
+    image: redis
+    ports:
+      - "6379:6379"
+
+data:
+    image: busybox
+    command: /bin/true
+    volumes:
+      - /app/obelix/database
