@@ -4,37 +4,42 @@ import metrics.MetricsCollector;
 import obelix.ObelixBatchImport;
 import obelix.ObelixCache;
 import obelix.ObelixFeeder;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import queue.impl.ObelixQueueElement;
 import queue.impl.RedisObelixQueue;
 import queue.interfaces.ObelixQueue;
 import store.impl.RedisObelixStore;
 import web.ObelixWebServer;
 
-
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Random;
 
-public class Main {
+public final class Main {
 
-    private final static Logger LOGGER = LoggerFactory.getLogger(Main.class.getName());
+    public static final int MAX_RELATIONSHIPS_DEFAULT = 30;
+    public static final int NUMBER_OF_WORKERS_DEFAULT = 1;
+    public static final int OBELIX_WEB_PORT_DEFAULT = 4500;
+    public static final int NEO4J_WEB_PORT_DEFAULT = 7575;
+    public static final int MAX_GRAPH_DEPTH_LIMIT = 10;
 
-    public static void main(String... args) {
+    private Main() {
+    }
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(Main.class.getName());
+
+    public static void main(final String... args) {
         LOGGER.warn("Restarting Obelix:main");
 
         String neoLocation = "graph.db";
         String redisQueuePrefix = "obelix:queue:";
         String redisQueueName = "logentries";
-        String metricsSaveLocation = "obelix_metrics.json";
+
         boolean enableMetrics = false;
-        int maxRelationships = 30;
-        int workers = 1;
-        int webPort = 4500;
-        int configNeo4jWebPort = 7575;
+        int maxRelationships = MAX_RELATIONSHIPS_DEFAULT;
+        int workers = NUMBER_OF_WORKERS_DEFAULT;
+        int webPort = OBELIX_WEB_PORT_DEFAULT;
+        int configNeo4jWebPort = NEO4J_WEB_PORT_DEFAULT;
 
         int carg = 0;
         for (String arg : args) {
@@ -108,7 +113,9 @@ public class Main {
                 enableNeo4jWebServer = true;
                 try {
                     configNeo4jWebPort = Integer.parseInt(args[carg + 1]);
-                } catch(NumberFormatException | NullPointerException | ArrayIndexOutOfBoundsException e) {
+                } catch (NumberFormatException | NullPointerException
+                        | ArrayIndexOutOfBoundsException e) {
+                    LOGGER.info("Neo4jWebServer is started on " + configNeo4jWebPort);
                 }
                 break;
             }
@@ -131,14 +138,15 @@ public class Main {
                 try {
                     int depth = Integer.parseInt(args[carg + 1]);
 
-                    if (depth < 0 || depth > 10) {
+                    if (depth < 0 || depth > MAX_GRAPH_DEPTH_LIMIT) {
                         throw new NumberFormatException();
                     }
 
                     recommendationDepth = args[carg + 1];
 
                 } catch (NumberFormatException e) {
-                    LOGGER.error("Wrong format for --recommendation-depth option, use a number from 0-10");
+                    LOGGER.error("Wrong format for --recommendation-depth"
+                            + "option, use a number from 0-10");
                 }
             }
             carg += 1;
@@ -159,16 +167,15 @@ public class Main {
             System.exit(0);
         }
 
-        GraphDatabase graphDb = new NeoGraphDatabase(neoLocation, enableNeo4jWebServer);
+        GraphDatabase graphDb = new NeoGraphDatabase(neoLocation,
+                enableNeo4jWebServer, configNeo4jWebPort);
 
         ObelixQueue redisQueueManager = new RedisObelixQueue(redisQueuePrefix, redisQueueName);
         ObelixQueue usersCacheQueue = new RedisObelixQueue(redisQueuePrefix, "cache:users");
 
 
         MetricsCollector metricsCollector = new MetricsCollector(
-                enableMetrics,
-                metricsSaveLocation, graphDb,
-                redisQueueManager, usersCacheQueue);
+                enableMetrics, graphDb, redisQueueManager, usersCacheQueue);
 
         if (enableMetrics) {
             new Thread(metricsCollector).start();
@@ -182,22 +189,9 @@ public class Main {
 
         (new Thread(new ObelixCache(graphDb, metricsCollector, usersCacheQueue,
                 new RedisObelixStore(redisQueuePrefix),
-                buildForAllUsersOnStartup, recommendationDepth, maxRelationships,
-                clientSettings()))).start();
+                buildForAllUsersOnStartup, recommendationDepth, maxRelationships
+        ))).start();
 
-    }
-
-    static void feedDummyData(ObelixQueue queue) {
-
-        for (int i = 0; i < 5; i++) {
-
-            String user = String.valueOf(new Random().nextInt(90000));
-            String item = String.valueOf(new Random().nextInt(90000));
-
-            String testData = "\"{\\\"file_format\\\": \\\"page_view\\\", \\\"timestamp\\\": 1431962580.7399549, \\\"item\\\": " + item + ", \\\"user\\\": " + user + ", \\\"ip\\\": \\\"188.218.111.19\\\", \\\"type\\\": \\\"events.pageviews\\\"}\"";
-
-            queue.push(new ObelixQueueElement(testData));
-        }
     }
 
     public static Map<String, String> clientSettings() {

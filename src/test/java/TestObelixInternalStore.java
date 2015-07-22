@@ -11,7 +11,7 @@ public class TestObelixInternalStore extends TestCase {
         ObelixStore obelixStore = new InternalObelixStore();
         obelixStore.set("a", obelixStoreElement);
 
-        assertEquals(obelixStore.get("a").data, obelixStoreElement.data);
+        assertEquals(obelixStore.get("a").getData(), obelixStoreElement.getData());
         assertEquals(obelixStore.get("a"), obelixStoreElement);
     }
 

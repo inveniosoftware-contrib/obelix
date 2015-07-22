@@ -2,25 +2,30 @@ package graph;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-public class Helpers {
+public final class Helpers {
 
-    public static LinkedHashMap<String, Double> sortedHashMap(Map<String, Double> map, boolean descending) {
+    private Helpers() {
+    }
+
+    public static LinkedHashMap<String, Double> sortedHashMap(
+            final Map<String, Double> map, final boolean descending) {
 
         LinkedHashMap<String, Double> result = new LinkedHashMap<>();
 
-        int order = descending ? -1 : 1;
+        int order = 1;
 
+        if (descending) {
+            order = -1;
+        }
+
+        final int finalOrder = order;
         Stream<Map.Entry<String, Double>> sorted = map.entrySet().stream().sorted((s1, s2) ->
-                s1.getValue().compareTo(s2.getValue()) * order);
+                s1.getValue().compareTo(s2.getValue()) * finalOrder);
 
-        sorted.forEachOrdered(new Consumer<Map.Entry<String, Double>>() {
-            public void accept(Map.Entry<String, Double> stringDoubleEntry) {
-                result.put(stringDoubleEntry.getKey(), stringDoubleEntry.getValue());
-            }
-        });
+        sorted.forEachOrdered(stringDoubleEntry ->
+                result.put(stringDoubleEntry.getKey(), stringDoubleEntry.getValue()));
 
         return result;
 

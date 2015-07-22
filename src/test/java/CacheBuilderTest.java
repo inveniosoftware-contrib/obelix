@@ -16,8 +16,6 @@ import store.impl.RedisObelixStore;
 import store.interfaces.ObelixStore;
 import utils.JsonTransformer;
 
-import java.util.HashMap;
-
 public class CacheBuilderTest extends TestCase {
 
     GraphDatabaseService neoDb;
@@ -50,7 +48,7 @@ public class CacheBuilderTest extends TestCase {
 
     public void testThatFeedingTriggersCacheBuilder() throws Exception {
         ObelixFeeder obelixFeeder = new ObelixFeeder(graphDb, 10, obelixQueue, obelixCacheQueue, 1);
-        ObelixCache obelixCache = new ObelixCache(graphDb, obelixCacheQueue, obelixStore, false, "10", 10, new HashMap<>());
+        ObelixCache obelixCache = new ObelixCache(graphDb, obelixCacheQueue, obelixStore, false, "10", 10);
         obelixFeeder.feed();
         assertEquals(graphDb.getRelationships("1", "1", null, null, false).size(), 1);
         assertEquals(obelixCacheQueue.getAll().size(), 1);
@@ -60,7 +58,7 @@ public class CacheBuilderTest extends TestCase {
 
     public void testThatCacheActuallyCreatesCachedEntryInternalStorage() throws Exception {
         ObelixFeeder obelixFeeder = new ObelixFeeder(graphDb, 10, obelixQueue, obelixCacheQueue, 1);
-        ObelixCache obelixCache = new ObelixCache(graphDb, obelixCacheQueue, obelixStore, false, "10", 10, new HashMap<>());
+        ObelixCache obelixCache = new ObelixCache(graphDb, obelixCacheQueue, obelixStore, false, "10", 10);
         obelixFeeder.feed();
         assertEquals(graphDb.getRelationships("1", "1", null, null, false).size(), 1);
         obelixCache.buildCacheFromCacheQueue();
@@ -85,7 +83,7 @@ public class CacheBuilderTest extends TestCase {
         obelixStore = new RedisObelixStore();
 
         ObelixFeeder obelixFeeder = new ObelixFeeder(graphDb, 10, obelixQueue, obelixCacheQueue, 1);
-        ObelixCache obelixCache = new ObelixCache(graphDb, obelixCacheQueue, obelixStore, false, "10", 10, new HashMap<>());
+        ObelixCache obelixCache = new ObelixCache(graphDb, obelixCacheQueue, obelixStore, false, "10", 10);
         obelixFeeder.feed();
         assertEquals(graphDb.getRelationships("2", "1", null, null, false).size(), 1);
         obelixCache.buildCacheFromCacheQueue();

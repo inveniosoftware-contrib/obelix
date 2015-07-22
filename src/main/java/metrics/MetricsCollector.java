@@ -3,6 +3,8 @@ package metrics;
 import com.google.gson.JsonObject;
 import graph.ItemGraph;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import queue.interfaces.ObelixQueue;
 import store.impl.InternalObelixStore;
 import store.impl.ObelixStoreElement;
@@ -14,8 +16,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class MetricsCollector implements Runnable {
+    private static final Logger LOGGER = LoggerFactory.getLogger(MetricsCollector.class.getName());
 
-    private final String metricsSaveLocation;
+
+    public static final int SLEEP_BETWEEN_COLLECTION_OF_METRICS = 300000;
     private final GraphDatabase graphDb;
     private final ObelixQueue redisQueueManager;
     private final ObelixQueue usersCacheQueue;
@@ -24,23 +28,19 @@ public class MetricsCollector implements Runnable {
     private Map<String, Integer> metrics = new HashMap<>();
     private Map<String, Integer> totalMetrics = new HashMap<>();
 
-    public MetricsCollector(boolean enableMetrics, String metricsSaveLocation,
-                            GraphDatabase graphDb,
-                            ObelixQueue redisQueueManager,
-                            ObelixQueue usersCacheQueue) {
+    public MetricsCollector(final boolean enableMetrics,
+                            final GraphDatabase graphDb,
+                            final ObelixQueue redisQueueManager,
+                            final ObelixQueue usersCacheQueue) {
 
-        if(!enableMetrics) {
+        if (!enableMetrics) {
             this.storage = new InternalObelixStore();
-            this.metricsSaveLocation = metricsSaveLocation;
             this.graphDb = graphDb;
             this.redisQueueManager = redisQueueManager;
             this.usersCacheQueue = usersCacheQueue;
-        }
-
-        else {
+        } else {
 
             this.storage = new RedisObelixStore();
-            this.metricsSaveLocation = metricsSaveLocation;
             this.graphDb = graphDb;
             this.redisQueueManager = redisQueueManager;
             this.usersCacheQueue = usersCacheQueue;
@@ -51,16 +51,12 @@ public class MetricsCollector implements Runnable {
     private void loadStoredMetrics() {
 
         ObelixStoreElement obelixMetrics = this.storage.get("total_metrics");
-        if (obelixMetrics != null) {
+        if (obelixMetrics != null && obelixMetrics.getData().has("recommendations_built")) {
 
-            if (obelixMetrics.data.has("recommendations_built")) {
+            this.totalMetrics.put("recommendations_built",
+                    obelixMetrics.getData().getInt("recommendations_built"));
 
-                this.totalMetrics.put("recommendations_built",
-                        obelixMetrics.data.getInt("recommendations_built"));
-
-                this.totalMetrics.put("feeded",
-                        obelixMetrics.data.getInt("feeded"));
-            }
+            this.totalMetrics.put("feeded", obelixMetrics.getData().getInt("feeded"));
         }
     }
 
@@ -74,27 +70,23 @@ public class MetricsCollector implements Runnable {
     private void saveMetrics() {
         JSONObject jsonObject = new JSONObject();
 
-        for(String key : this.metrics.keySet()) {
-            jsonObject.put(key, this.metrics.get(key));
-        }
-
-        for(String key : this.totalMetrics.keySet()) {
-            jsonObject.put("total_" + key, this.totalMetrics.get(key));
-        }
+        this.metrics.forEach(jsonObject::put);
+        this.totalMetrics.forEach((key, val) -> jsonObject.put("total_" + key, val));
 
         this.storage.set("metrics", new ObelixStoreElement(jsonObject));
     }
 
-    public void printMetrics() {
+    public final void printMetrics() {
         JsonObject object = new JsonObject();
 
-        for (String key : this.metrics.keySet()) {
-            if (this.totalMetrics.containsKey(key)) {
-                object.addProperty("total_" + key, this.totalMetrics.get(key));
-            }
 
-            object.addProperty(key, this.metrics.get(key));
-        }
+        this.metrics.forEach((key, val) -> {
+                    if (this.totalMetrics.containsKey(key)) {
+                        object.addProperty("total_" + key, val);
+                    }
+                    object.addProperty(key, val);
+                }
+        );
 
         saveMetrics();
         saveTotalMetrics();
@@ -103,21 +95,19 @@ public class MetricsCollector implements Runnable {
     }
 
     private void resetMetrics() {
-        for (String key : metrics.keySet()) {
-            if (this.metrics.containsKey(key)) {
-                this.metrics.put(key, 0);
-            }
-        }
+        metrics.keySet().stream().filter(this.metrics::containsKey).forEach(key ->
+                        this.metrics.put(key, 0)
+        );
     }
 
-    private synchronized void addTotalMetricValue(String key, int value) {
+    private synchronized void addTotalMetricValue(final String key, final int value) {
         if (!this.totalMetrics.containsKey(key)) {
             this.totalMetrics.put(key, 0);
         }
         this.totalMetrics.put(key, this.totalMetrics.get(key) + value);
     }
 
-    public synchronized void addAccumalativeMetricValue(String key, int value) {
+    public final synchronized void addAccumalativeMetricValue(final String key, final int value) {
         if (!this.metrics.containsKey(key)) {
             this.metrics.put(key, 0);
         }
@@ -126,7 +116,7 @@ public class MetricsCollector implements Runnable {
         this.addTotalMetricValue(key, value);
     }
 
-    public synchronized void addStaticMetricValue(String key, int value) {
+    public final synchronized void addStaticMetricValue(final String key, final int value) {
         if (!this.metrics.containsKey(key)) {
             this.metrics.put(key, 0);
         }
@@ -145,23 +135,22 @@ public class MetricsCollector implements Runnable {
 
         addStaticMetricValue("all_users_count", graphDb.getAllUserIds().size());
         addStaticMetricValue("all_items_count", itemGraph.getAll().size());
-        addStaticMetricValue("all_relationships_count", graphDb.getAllRelationships_().size());
+        addStaticMetricValue("all_relationships_count", graphDb.getRelationships().size());
     }
 
-    @Override
-    public void run() {
+    public final void run() {
 
         while (true) {
             addQueueStats();
             addGraphStats();
             this.printMetrics();
-            //this.resetMetrics();
 
             try {
-                // wait for 5 seconds
-                Thread.sleep(300000);
+                Thread.sleep(SLEEP_BETWEEN_COLLECTION_OF_METRICS);
             } catch (InterruptedException e) {
+                LOGGER.error("Stopped collecting metrics.");
                 e.printStackTrace();
+                break;
             }
         }
     }

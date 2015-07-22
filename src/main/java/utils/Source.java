@@ -14,28 +14,28 @@ public class Source {
     private String clientHost;
 
     @Key("id_bibrec")
-    public int bibrecID;
+    private int bibrecID;
 
     @Key("timestamp")
     private String timestamp;
 
-    public int getBibdocID() {
+    public final int getBibdocID() {
         return bibdocID;
     }
 
-    public int getUserID() {
+    public final int getUserID() {
         return userID;
     }
 
-    public String getClientHost() {
+    public final String getClientHost() {
         return clientHost;
     }
 
-    public int getBibrecID() {
+    public final int getBibrecID() {
         return bibrecID;
     }
 
-    public String getTimestamp() {
+    public final String getTimestamp() {
         return timestamp;
     }
 }

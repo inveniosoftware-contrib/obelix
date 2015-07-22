@@ -10,21 +10,24 @@ import java.util.List;
 
 public class TimeStampExpander implements PathExpander {
 
-    long until;
-    long since;
-    int depth;
+    private Long until;
+    private Long since;
+    private int depth;
 
-    public TimeStampExpander(String since, String until, String depth) {
-        this.depth = Integer.parseInt(depth);
+    public TimeStampExpander(final String sinceInput,
+                             final String untilInput,
+                             final String depthInputInput) {
 
-        if(until != null) {
-            this.until = Long.valueOf(until);
+        this.depth = Integer.parseInt(depthInputInput);
+
+        if (untilInput != null) {
+            this.until = Long.parseLong(untilInput);
         } else {
             this.until = Long.MAX_VALUE;
         }
 
-        if(since != null) {
-            this.since = Long.valueOf(since);
+        if (sinceInput != null) {
+            this.since = Long.valueOf(sinceInput);
         } else {
             this.since = Long.MIN_VALUE;
         }
@@ -32,33 +35,30 @@ public class TimeStampExpander implements PathExpander {
     }
 
     @Override
-    public Iterable<Relationship> expand(Path path, BranchState state) {
+    public final Iterable<Relationship> expand(final Path path, final BranchState state) {
 
         List<Relationship> result = new ArrayList<>();
 
-        if(this.since == Long.MIN_VALUE && this.until == Long.MAX_VALUE) {
+        if (this.since == Long.MIN_VALUE && this.until == Long.MAX_VALUE) {
             return path.endNode().getRelationships();
         }
 
-        if(path.length() >= this.depth) {
+        if (path.length() >= this.depth) {
             return result;
         }
 
-        for(Relationship rel : path.endNode().getRelationships()) {
+        for (Relationship rel : path.endNode().getRelationships()) {
             long current = Long.parseLong(rel.getProperty("timestamp").toString());
-            if(until > current && current > since) {
+            if (until > current && current > since) {
                 result.add(rel);
             }
         }
 
-        //System.out.println("relationships: " + path.relationships() );
-        //System.out.println("result size: " + result.size() );
         return result;
-
     }
 
     @Override
-    public PathExpander reverse() {
+    public final PathExpander reverse() {
         return this;
     }
 

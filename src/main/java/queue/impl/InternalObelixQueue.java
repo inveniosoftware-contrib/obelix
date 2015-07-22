@@ -14,8 +14,8 @@ public class InternalObelixQueue implements ObelixQueue {
     }
 
     @Override
-    public ObelixQueueElement pop() {
-        if(this.queue.size() < 1) {
+    public final ObelixQueueElement pop() {
+        if (this.queue.size() < 1) {
             return null;
         }
         ObelixQueueElement result = this.queue.get(0);
@@ -24,12 +24,12 @@ public class InternalObelixQueue implements ObelixQueue {
     }
 
     @Override
-    public void push(ObelixQueueElement element) {
+    public final void push(final ObelixQueueElement element) {
         this.queue.add(element);
     }
 
     @Override
-    public List<ObelixQueueElement> getAll() {
+    public final List<ObelixQueueElement> getAll() {
         return queue;
     }
 

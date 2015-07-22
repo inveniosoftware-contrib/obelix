@@ -5,12 +5,6 @@ import events.NeoEvent;
 import graph.exceptions.ObelixInsertException;
 import graph.interfaces.GraphDatabase;
 import metrics.MetricsCollector;
-import org.neo4j.cypher.EntityNotFoundException;
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.NotFoundException;
-import org.neo4j.graphdb.Transaction;
-import org.neo4j.graphdb.TransactionFailureException;
-import org.neo4j.kernel.DeadlockDetectedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import queue.impl.ObelixQueueElement;
@@ -19,94 +13,103 @@ import queue.interfaces.ObelixQueue;
 
 public class ObelixFeeder implements Runnable {
 
-    private final static Logger LOGGER = LoggerFactory.getLogger(ObelixFeeder.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(ObelixFeeder.class.getName());
+    public static final int IMPORTS_BETWEEN_EVERY_LOG_MESSAGE = 1000;
+    public static final int FEEDER_SLEEPING_INIT = 3000;
     private final MetricsCollector metricsCollector;
 
-    GraphDatabase graphDb;
-    ObelixQueue redisQueueManager;
-    ObelixQueue usersCacheQueue;
-    int maxRelationships;
-    int workerID;
+    private GraphDatabase graphDb;
+    private ObelixQueue redisQueueManager;
+    private ObelixQueue usersCacheQueue;
+    private int maxRelationships;
+    private int workerID;
 
-    public ObelixFeeder(GraphDatabase graphDb,
-                        MetricsCollector metricsCollector,
-                        int maxRelationships,
-                        ObelixQueue redisQueueManager,
-                        ObelixQueue usersCacheQueue,
-                        int workerID) {
+    public ObelixFeeder(final GraphDatabase graphDbINput,
+                        final MetricsCollector metricsCollectorInput,
+                        final int maxRelationshipsInput,
+                        final ObelixQueue redisQueueManagerInput,
+                        final ObelixQueue usersCacheQueueInput,
+                        final int workerIDInput) {
 
-        this.metricsCollector = metricsCollector;
-        this.redisQueueManager = redisQueueManager;
-        this.usersCacheQueue = usersCacheQueue;
-        this.maxRelationships = maxRelationships;
-        this.graphDb = graphDb;
-        this.workerID = workerID;
+        this.metricsCollector = metricsCollectorInput;
+        this.redisQueueManager = redisQueueManagerInput;
+        this.usersCacheQueue = usersCacheQueueInput;
+        this.maxRelationships = maxRelationshipsInput;
+        this.graphDb = graphDbINput;
+        this.workerID = workerIDInput;
     }
 
-    public ObelixFeeder(GraphDatabase graphDb,
-                        int maxRelationships,
-                        ObelixQueue redisQueueManager,
-                        ObelixQueue usersCacheQueue,
-                        int workerID) {
+    public ObelixFeeder(final GraphDatabase graphDbInput,
+                        final int maxRelationshipsInput,
+                        final ObelixQueue redisQueueManagerInput,
+                        final ObelixQueue usersCacheQueueInput,
+                        final int workerIDInput) {
 
-        this(graphDb, null, maxRelationships, redisQueueManager, usersCacheQueue, workerID);
+        this(graphDbInput, null, maxRelationshipsInput, redisQueueManagerInput,
+                usersCacheQueueInput, workerIDInput);
     }
 
-    public void run() {
+    public final void run() {
 
-        try {
+        while (true) {
 
-            LOGGER.info("Starting feeder: " + workerID);
+            try {
 
-            while (true) {
+                LOGGER.info("Starting feeder: " + workerID);
 
-                try {
-                    Thread.sleep(3000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+                while (true) {
+
+                    try {
+                        Thread.sleep(FEEDER_SLEEPING_INIT);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+
+                    feed();
+
                 }
-
-                feed();
-
+            } catch (Exception e) {
+                LOGGER.error("ObelixFeeder Exception", e);
+                LOGGER.info("Restarting ObelixFeeder.run()!");
             }
-        } catch (Exception e) {
-            LOGGER.error("ObelixFeeder Exception", e);
-            LOGGER.info("Restarting ObelixFeeder.run()!");
-            this.run();
         }
     }
 
-    public boolean feed() {
+    public final boolean feed() {
         int count = 0;
         ObelixQueueElement result = redisQueueManager.pop();
 
         while (result != null) {
-            NeoEvent event = EventFactory.build(result.data.toString());
+            NeoEvent event = EventFactory.build(result.getData().toString());
 
             if (event != null) {
                 LOGGER.debug("Handling event: " + event);
 
-                if(metricsCollector != null) {
+                if (metricsCollector != null) {
                     metricsCollector.addAccumalativeMetricValue("feeded", 1);
                 }
 
                 try {
                     event.execute(graphDb, maxRelationships);
                 } catch (ObelixInsertException e) {
-                    LOGGER.error("Insert error, pushing the element back on the queue. : " + result);
+                    LOGGER.error("Insert error, pushing the "
+                            + "element back on the queue. : " + result);
+
                     redisQueueManager.push(result);
                     return true;
                 }
 
                 // Tell Obelix to rebuild the cache for the user in this event!
                 // This will maintain the caches for all active users
-                if (!usersCacheQueue.getAll().contains(new ObelixQueueElement("user_id", event.getUser()))) {
+                if (!usersCacheQueue.getAll().contains(
+                        new ObelixQueueElement("user_id", event.getUser()))) {
                     usersCacheQueue.push(new ObelixQueueElement("user_id", event.getUser()));
                 }
                 count += 1;
 
-                if (count % 1000 == 0) {
-                    LOGGER.info("WorkerID: " + workerID + " imported " + count + " entries from redis");
+                if (count % IMPORTS_BETWEEN_EVERY_LOG_MESSAGE == 0) {
+                    LOGGER.info("WorkerID: " + workerID
+                            + " imported " + count + " entries from redis");
                 }
             }
             result = redisQueueManager.pop();

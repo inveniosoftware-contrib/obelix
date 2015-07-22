@@ -22,52 +22,55 @@ import java.util.NoSuchElementException;
 
 public class ObelixCache implements Runnable {
 
-    private final static Logger LOGGER = LoggerFactory.getLogger(ObelixCache.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(ObelixCache.class.getName());
+    public static final int LIMIT_CACHE_BUILDS_BEFORE_SLEEP = 50;
+    public static final int SLEEP_MS_BETWEEN_EACH_CACHE_BUILD = 300;
     private final MetricsCollector metricsCollector;
 
-    GraphDatabase graphDb;
-    Recommender recommender;
-    ObelixQueue redisQueueManager;
-    ObelixStore redisStoreManager;
-    Map<String, String> clientSettings;
+    private final GraphDatabase graphDb;
+    private final Recommender recommender;
+    private final ObelixQueue redisQueueManager;
+    private final ObelixStore redisStoreManager;
 
-    String recommendationDepth;
-    int maxRelationships;
-    boolean buildForAllUsersOnStartup;
+    private final String recommendationDepth;
+    private final int maxRelationships;
+    private final boolean buildForAllUsersOnStartup;
 
-    public ObelixCache(GraphDatabase graphDb, MetricsCollector metricsCollector,
-                       ObelixQueue usersCacheQueue,
-                       ObelixStore obelixStore,
-                       boolean buildForAllUsersOnStartup, String recommendationDepth,
-                       int maxRelationships, Map<String, String> clientSettings) {
+    public ObelixCache(final GraphDatabase graphDbInput,
+                       final MetricsCollector metricsCollectorInput,
+                       final ObelixQueue usersCacheQueueInput,
+                       final ObelixStore obelixStoreInput,
+                       final boolean buildForAllUsersOnStartupInput,
+                       final String recommendationDepthInput,
+                       final int maxRelationshipsInput) {
 
-        this.metricsCollector = metricsCollector;
-        this.redisStoreManager = obelixStore;
-        this.graphDb = graphDb;
-        this.redisQueueManager = usersCacheQueue;
-        //GraphDatabase odb = new NeoGraphDatabase(graphDb);
-        this.recommender = new ObelixRecommender(graphDb);
-        this.buildForAllUsersOnStartup = buildForAllUsersOnStartup;
-        this.recommendationDepth = recommendationDepth;
-        this.maxRelationships = maxRelationships;
-        this.clientSettings = clientSettings;
+        this.metricsCollector = metricsCollectorInput;
+        this.redisStoreManager = obelixStoreInput;
+        this.graphDb = graphDbInput;
+        this.redisQueueManager = usersCacheQueueInput;
+        this.recommender = new ObelixRecommender(graphDbInput);
+        this.buildForAllUsersOnStartup = buildForAllUsersOnStartupInput;
+        this.recommendationDepth = recommendationDepthInput;
+        this.maxRelationships = maxRelationshipsInput;
     }
 
-    public ObelixCache(GraphDatabase graphDb,
-                       ObelixQueue usersCacheQueue,
-                       ObelixStore obelixStore,
-                       boolean buildForAllUsersOnStartup, String recommendationDepth,
-                       int maxRelationships, Map<String, String> clientSettings) {
+    public ObelixCache(final GraphDatabase graphDbInput,
+                       final ObelixQueue usersCacheQueueInput,
+                       final ObelixStore obelixStoreInput,
+                       final boolean buildForAllUsersOnStartupInput,
+                       final String recommendationDepthInput,
+                       final int maxRelationshipsInput) {
 
-        this(graphDb, null, usersCacheQueue, obelixStore, buildForAllUsersOnStartup,
-                recommendationDepth, maxRelationships, clientSettings);
+        this(graphDbInput, null, usersCacheQueueInput, obelixStoreInput,
+                buildForAllUsersOnStartupInput, recommendationDepthInput,
+                maxRelationshipsInput);
     }
 
     private void buildSettingsCache() {
         //redisStoreManager.set("settings", new JsonTransformer().render(this.clientSettings));
     }
 
-    private void buildCacheForUser(String userid) {
+    private void buildCacheForUser(final String userid) {
         LOGGER.info("Building recommendations for user id: " + userid);
 
         Map<String, Double> recommendations;
@@ -79,60 +82,69 @@ public class ObelixCache implements Runnable {
                     "recommendations::" + userid,
                     new ObelixStoreElement(jsonTransformer.render(recommendations)));
 
-            if(metricsCollector != null) {
+            if (metricsCollector != null) {
                 this.metricsCollector.addAccumalativeMetricValue("recommendations_built", 1);
             }
 
-        } catch (ObelixNodeNotFoundException | NoSuchElementException | IllegalArgumentException e) {
-            LOGGER.info("Recommendations for user " + userid + " failed to build..! Can't find the user");
+        } catch (ObelixNodeNotFoundException | NoSuchElementException
+                | IllegalArgumentException e) {
+
+            LOGGER.info("Recommendations for user " + userid
+                    + " failed to build..! Can't find the user");
         }
     }
 
-    public void run() {
-        try {
+    public final void run() {
 
-            buildSettingsCache();
+        while (true) {
 
-            if (this.buildForAllUsersOnStartup) {
-                LOGGER.info("We're going to build the cache for all users!");
+            try {
+                buildSettingsCache();
 
-                int usersAdded = 0;
-                for (String userid : this.graphDb.getAllUserIds()) {
-                     redisQueueManager.push(new ObelixQueueElement("user_id", userid));
-                     usersAdded += 1;
-                }
-                LOGGER.info("Building cache for " + usersAdded + " users!");
-                LOGGER.info("But first we should clean up relationships for all users");
+                if (this.buildForAllUsersOnStartup) {
+                    LOGGER.info("We're going to build the cache for all users!");
+
+                    int usersAdded = 0;
+                    for (String userid : this.graphDb.getAllUserIds()) {
+                        redisQueueManager.push(new ObelixQueueElement("user_id", userid));
+                        usersAdded += 1;
+                    }
+                    LOGGER.info("Building cache for " + usersAdded + " users!");
+                    LOGGER.info("But first we should clean up relationships for all users");
 
                     for (String user : this.graphDb.getAllUserIds()) {
                         try {
-                            graphDb.makeSureTheUserDoesNotExceedMaxRelationshipsLimitObelix(user, maxRelationships);
+                            graphDb.makeSureUserItemLimitNotExceeded(
+                                    user, maxRelationships);
                         } catch (ObelixNodeNotFoundException e) {
                             LOGGER.error("make sure users does not exceed max limit rel", e);
                         }
                     }
-            }
-
-            while (true) {
-                buildCacheFromCacheQueue();
-                int secondsDalay = 2;
-                LOGGER.info("CacheBuilder paused for " + secondsDalay + " seconds");
-
-                try {
-                    Thread.sleep(secondsDalay * 1000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
                 }
-            }
 
-        } catch (Exception e) {
-            LOGGER.error("ObelixCache Exception", e);
-            LOGGER.info("Restarting ObelixCache.run()!");
-            this.run();
+                while (true) {
+                    try {
+
+                        int secondsDalay = SLEEP_MS_BETWEEN_EACH_CACHE_BUILD;
+                        LOGGER.info("CacheBuilder paused for " + secondsDalay + " ms");
+
+                        buildCacheFromCacheQueue();
+                        Thread.sleep(SLEEP_MS_BETWEEN_EACH_CACHE_BUILD);
+
+                    } catch (Exception e) {
+                        break;
+                    }
+
+                }
+
+            } catch (Exception e) {
+                LOGGER.error("ObelixCache Exception", e);
+                LOGGER.info("Restarting ObelixCache.run()!");
+            }
         }
     }
 
-    public void buildCacheFromCacheQueue() {
+    public final void buildCacheFromCacheQueue() {
         List<String> allUsers = this.graphDb.getAllUserIds();
         List<String> usersHandledAlready = new ArrayList<>();
 
@@ -144,7 +156,7 @@ public class ObelixCache implements Runnable {
                 break;
             }
 
-            String userID = (String) user.data.get("user_id");
+            String userID = (String) user.getData().get("user_id");
 
             if (userID.equals("") || userID.equals("0")) {
                 break;
@@ -159,16 +171,18 @@ public class ObelixCache implements Runnable {
             if (allUsers.contains(userID)) {
                 imported += 1;
                 try {
-                        buildCacheForUser(userID);
-                        usersHandledAlready.add(userID);
-                    } catch (TransactionFailureException e) {
-                        LOGGER.error("Pushing user [" + userID + "]back on the queue because: " + e.getMessage());
-                        usersHandledAlready.remove(userID);
-                        redisQueueManager.push(user);
-                    }
+                    buildCacheForUser(userID);
+                    usersHandledAlready.add(userID);
+                } catch (TransactionFailureException e) {
+                    LOGGER.error("Pushing user [" + userID + "]back on the queue because: "
+                            + e.getMessage());
+
+                    usersHandledAlready.remove(userID);
+                    redisQueueManager.push(user);
+                }
             }
 
-            if (imported >= 50) {
+            if (imported >= LIMIT_CACHE_BUILDS_BEFORE_SLEEP) {
                 break;
             }
         }

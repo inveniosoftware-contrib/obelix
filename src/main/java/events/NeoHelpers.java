@@ -11,36 +11,36 @@ import org.neo4j.graphdb.ResourceIterable;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.index.Index;
 import org.neo4j.graphdb.index.IndexManager;
-import org.neo4j.graphdb.index.UniqueFactory;
 import org.neo4j.tooling.GlobalGraphOperations;
-
-import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
-public class NeoHelpers {
+public final class NeoHelpers {
 
-    private final static Logger LOGGER = LoggerFactory.getLogger(NeoHelpers.class.getName());
-
-    public static enum RelTypes implements RelationshipType {
-        VIEWED,
-        DOWNLOADED
+    private NeoHelpers() {
     }
 
-    public static String normalizedTimeStamp(String timestamp) {
+    private static final Logger LOGGER = LoggerFactory.getLogger(NeoHelpers.class.getName());
+
+    public enum RelTypes implements RelationshipType {
+        VIEWED
+    }
+
+    public static String normalizedTimeStamp(final String timestamp) {
         Double timeStamp = Double.parseDouble(timestamp);
         String formatted = String.format("%.4f", timeStamp);
         String[] parts = formatted.split("\\.");
         return String.valueOf(parts[0]);
     }
 
-    public static List<String> getAllNodes(GraphDatabaseService graphDb, String labelName) {
+    public static List<String> getAllNodes(final GraphDatabaseService graphDb,
+                                           final String labelName) {
 
-        List<String> node_ids = new ArrayList<>();
+        List<String> nodeIds = new ArrayList<>();
         Label label = DynamicLabel.label(labelName);
         ResourceIterable<Node> nodes;
 
@@ -49,7 +49,7 @@ public class NeoHelpers {
 
             for (Node node : nodes) {
                 try {
-                    node_ids.add(node.getProperty("node_id").toString());
+                    nodeIds.add(node.getProperty("node_id").toString());
                 } catch (Exception e) {
                     LOGGER.warn("Can't find a given node... skipping");
                 }
@@ -58,28 +58,15 @@ public class NeoHelpers {
             tx.success();
         }
 
-        return node_ids;
+        return nodeIds;
 
     }
 
-    public static UniqueFactory.UniqueNodeFactory getOrCreateNode(GraphDatabaseService graphDb,
-                                                                  String index,
-                                                                  String labelName) {
 
-        try (Transaction tx = graphDb.beginTx()) {
-            UniqueFactory.UniqueNodeFactory result = new UniqueFactory.UniqueNodeFactory(graphDb, index) {
-                @Override
-                protected void initialize(Node created, Map<String, Object> properties) {
-                    created.addLabel(DynamicLabel.label(labelName));
-                    created.setProperty("node_id", properties.get("node_id"));
-                }
-            };
-            tx.success();
-            return result;
-        }
-    }
+    public static Node getUserNode(final GraphDatabaseService graphDb,
+                                   final String userID)
+            throws ObelixNodeNotFoundException {
 
-    public static Node getUserNode(GraphDatabaseService graphDb, String userID) throws ObelixNodeNotFoundException {
         IndexManager index = graphDb.index();
         Index<Node> users = index.forNodes("users");
 
@@ -92,7 +79,8 @@ public class NeoHelpers {
         return node;
     }
 
-    public static Node getOrCreateUserNode(GraphDatabaseService graphDb, String userID) {
+    public static Node getOrCreateUserNode(final GraphDatabaseService graphDb,
+                                           final String userID) {
 
         IndexManager index = graphDb.index();
         Index<Node> usersIndex = index.forNodes("users");
@@ -109,7 +97,8 @@ public class NeoHelpers {
 
     }
 
-    public static Node getOrCreateItemNode(GraphDatabaseService graphDb, String itemID) {
+    public static Node getOrCreateItemNode(final GraphDatabaseService graphDb,
+                                           final String itemID) {
 
         IndexManager index = graphDb.index();
         Index<Node> usersIndex = index.forNodes("items");
@@ -126,22 +115,9 @@ public class NeoHelpers {
 
     }
 
-    public static Node getItemNode(GraphDatabaseService graphDb, String itemID) throws ObelixNodeNotFoundException {
-        IndexManager index = graphDb.index();
-        Index<Node> users = index.forNodes("items");
-
-        Node node = users.get("node_id", itemID).getSingle();
-
-        if (node == null) {
-            throw new ObelixNodeNotFoundException();
-        }
-
-        return users.get("node_id", itemID).getSingle();
-    }
-
-
-    public static void makeSureTheUserDoesNotExceedMaxRelationshipsLimit(GraphDatabaseService graphDb,
-                                                                         Node a, int maxRelationships) {
+    public static void makeSureUsersDontExceedItemLimit(final GraphDatabaseService graphDb,
+                                                        final Node a,
+                                                        final int maxRelationships) {
 
 
         // First we remove the duplicates, we only need to
@@ -164,7 +140,7 @@ public class NeoHelpers {
 
             List<String> seenAlready = new ArrayList<>();
 
-            Collections.sort(relationships, new RelationshipComperator());
+            Collections.sort(relationships, new RelationshipComparator());
 
             for (Relationship rel : relationships) {
                 String nodeID = rel.getEndNode().getProperty("node_id").toString();
@@ -192,7 +168,7 @@ public class NeoHelpers {
                 relationships.add(relationship);
             }
 
-            Collections.sort(relationships, new RelationshipComperator());
+            Collections.sort(relationships, new RelationshipComparator());
 
             int c = 0;
             for (Relationship rel : relationships) {
@@ -209,30 +185,13 @@ public class NeoHelpers {
             tx.success();
         }
 
-        if(duplicatesRemoved > 0 || oldRemoved > 0) {
+        if (duplicatesRemoved > 0 || oldRemoved > 0) {
             LOGGER.debug("Cleans up relationships for "
-                            + currentUser + " deletes: "
-                            + duplicatesRemoved + " duplicates and "
-                            + oldRemoved + " old relationships");
+                    + currentUser + " deletes: "
+                    + duplicatesRemoved + " duplicates and "
+                    + oldRemoved + " old relationships");
         }
 
     }
 
-    public static void createRealationship(GraphDatabaseService graphdb,
-                                           Node user,
-                                           Node item,
-                                           String timestamp,
-                                           RelationshipType relType,
-                                           int maxRelationships) {
-
-        if (timestamp == null) {
-            return;
-        }
-
-        Relationship r = user.createRelationshipTo(item, relType);
-        r.setProperty("timestamp", timestamp);
-
-        makeSureTheUserDoesNotExceedMaxRelationshipsLimit(graphdb, user, maxRelationships);
-
-    }
 }
