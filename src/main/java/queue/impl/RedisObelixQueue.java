@@ -6,8 +6,8 @@ import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import utils.RedisPool;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class RedisObelixQueue implements ObelixQueue {
 
@@ -15,40 +15,38 @@ public class RedisObelixQueue implements ObelixQueue {
     private String queueName;
     private String prefix;
 
-    public RedisObelixQueue(String queueName) {
+    public RedisObelixQueue(final String queueName) {
         this.redisPool = new RedisPool().getRedis();
         this.queueName = queueName;
         this.prefix = "obelix:queue:";
     }
 
-    public RedisObelixQueue(String prefix, String queueName) {
+    public RedisObelixQueue(final String prefix, final String queueName) {
         this.redisPool = new RedisPool().getRedis();
         this.queueName = queueName;
         this.prefix = prefix;
     }
 
-    public synchronized ObelixQueueElement pop() {
+    public final synchronized ObelixQueueElement pop() {
         try (Jedis jedis = this.redisPool.getResource()) {
-            if(jedis.llen(this.prefix + this.queueName) > 0) {
+            if (jedis.llen(this.prefix + this.queueName) > 0) {
                 return new ObelixQueueElement(jedis.lpop(this.prefix + this.queueName));
             }
             return null;
         }
     }
 
-    public synchronized void push(ObelixQueueElement entry) {
+    public final synchronized void push(final ObelixQueueElement entry) {
         try (Jedis jedis = this.redisPool.getResource()) {
-            jedis.rpush(this.prefix + this.queueName, entry.data.toString());
+            jedis.rpush(this.prefix + this.queueName, entry.getData().toString());
         }
     }
 
-    public synchronized List<ObelixQueueElement> getAll() {
+    public final synchronized List<ObelixQueueElement> getAll() {
         try (Jedis jedis = this.redisPool.getResource()) {
-            List<ObelixQueueElement> result = new ArrayList<>();
-            for(String obj : jedis.lrange(this.prefix + this.queueName, 0, jedis.llen(this.prefix + this.queueName))) {
-                result.add(new ObelixQueueElement(obj));
-            }
-            return result;
+            return jedis.lrange(this.prefix + this.queueName, 0,
+                    jedis.llen(this.prefix + this.queueName))
+                    .stream().map(ObelixQueueElement::new).collect(Collectors.toList());
         }
     }
 }

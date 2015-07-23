@@ -3,65 +3,68 @@ package events;
 import com.google.api.client.util.Key;
 import graph.exceptions.ObelixInsertException;
 import graph.interfaces.GraphDatabase;
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.graphdb.Node;
 
 import static events.NeoHelpers.normalizedTimeStamp;
 
 public class Download implements NeoEvent {
 
-    //{"item":58329376,"ip":"85.5.192.100","type":"events.downloads","user":"58329376","file_format":"PNG;ICON","timestamp":1421027564617}
-    //"{\"file_format\": \"PDF\", \"timestamp\": 1422539383.3392179, \"item\": 1297206, \"user\": \"58359646\", \"ip\": \"137.138.125.175\", \"type\": \"events.downloads\"}"
-
     @Key("item")
-    String item;
-
-    @Key("ip")
-    String ip;
+    private String item;
 
     @Key("type")
-    String type;
+    private String type;
 
     @Key("user")
-    String user;
+    private String user;
 
     @Key("file_format")
-    String file_format;
+    private String fileFormat;
 
     @Key("timestamp")
-    Long timestamp;
+    private Long timestamp;
 
-    @Override
-    public boolean validate() {
-        return user != null && item != null && file_format != null &&
-                file_format.toLowerCase().equals("pdf") &&
-                !user.equals("") && !user.equals("0") &&
-                !item.equals("") && !item.equals("0");
+    public final boolean validate() {
+
+        if (user == null || item == null || fileFormat == null) {
+            return false;
+        }
+
+        if (!fileFormat.toLowerCase().equals("pdf")) {
+            return false;
+        }
+
+        if (user.equals("") || user.equals("0")) {
+            return false;
+        }
+
+        return !(item.equals("") || item.equals("0"));
+
     }
 
-    @Override
-    public void execute(GraphDatabase graphDb, int maxRelationships) throws ObelixInsertException{
+    public final void execute(final GraphDatabase graphDb,
+                              final int maxRelationships) throws ObelixInsertException {
         //Fixme: Why VIEWED?
-        graphDb.createNodeNodeRelationship(this.user, this.item, NeoHelpers.RelTypes.VIEWED, getTimestamp(), maxRelationships);
+        graphDb.createNodeNodeRelationship(this.user,
+                this.item, NeoHelpers.RelTypes.VIEWED, getTimestamp(), maxRelationships);
     }
 
     @Override
-    public String getType() {
+    public final String getType() {
         return this.type;
     }
 
     @Override
-    public String getUser() {
+    public final String getUser() {
         return this.user;
     }
 
     @Override
-    public String getItem() {
+    public final String getItem() {
         return this.item;
     }
 
     @Override
-    public String getTimestamp() {
+    public final String getTimestamp() {
         return normalizedTimeStamp(this.timestamp.toString());
     }
 }

@@ -15,29 +15,35 @@ import java.util.Map;
 
 
 public class ObelixRecommender implements Recommender {
-    private final static Logger LOGGER = LoggerFactory.getLogger(ObelixRecommender.class.getName());
-    GraphDatabase graphdb;
+    private static final Logger LOGGER = LoggerFactory.getLogger(ObelixRecommender.class.getName());
+    public static final double INCLUDE_RECOMMENDATION_TRESHOLD = 0.15;
+    private GraphDatabase graphdb;
 
-    public ObelixRecommender(GraphDatabase graphdb) {
-        this.graphdb = graphdb;
+    public ObelixRecommender(final GraphDatabase graphdbInput) {
+        this.graphdb = graphdbInput;
     }
 
     @Override
-    public Map<String, Double> recommend(String userID) throws ObelixNodeNotFoundException {
+    public final Map<String, Double> recommend(final String userID)
+            throws ObelixNodeNotFoundException {
         return recommend(userID, "3", null, null, null);
     }
 
     @Override
-    public Map<String, Double> recommend(String userID, String depth) throws ObelixNodeNotFoundException {
+    public final Map<String, Double> recommend(final String userID, final String depth)
+            throws ObelixNodeNotFoundException {
+
         return recommend(userID, depth, null, null, null);
     }
 
     @Override
-    public Map<String, Double> recommend(String userID,
-                                         String depth,
-                                         String sinceTimestamp,
-                                         String untilTimestamp,
-                                         String importanceFactor) throws ObelixNodeNotFoundException {
+    public final Map<String, Double> recommend(final String userID,
+                                               final String depth,
+                                               final String sinceTimestamp,
+                                               final String untilTimestamp,
+                                               final String importanceFactor)
+            throws ObelixNodeNotFoundException {
+
         int importanceFactorInteger = 1;
         if (importanceFactor != null) {
             importanceFactorInteger = Integer.parseInt(importanceFactor);
@@ -50,25 +56,30 @@ public class ObelixRecommender implements Recommender {
 
         while (userItemRelationships == null) {
             try {
-                userItemRelationships = graphdb.getRelationships(userID, depth, sinceTimestamp, untilTimestamp, false);
+                userItemRelationships = graphdb.getRelationships(
+                        userID, depth, sinceTimestamp, untilTimestamp, false);
 
             } catch (NotFoundException e) {
                 errorFetchingRelationships = true;
-                LOGGER.error("Relationships not found, we have to try again! (" + e.getMessage() + ")");
-                LOGGER.error(userID + "-" + depth + "-" + sinceTimestamp + "-" + untilTimestamp + "-" + importanceFactor);
+                LOGGER.error("Relationships not found, we have to try again! ("
+                        + e.getMessage() + ")");
+
+                LOGGER.error(userID + "-" + depth + "-" + sinceTimestamp
+                        + "-" + untilTimestamp + "-" + importanceFactor);
             }
         }
 
         if (errorFetchingRelationships) {
             LOGGER.error("Fetching relationships OK now for:");
-            LOGGER.error(userID + "-" + depth + "-" + sinceTimestamp + "-" + untilTimestamp + "-" + importanceFactor);
+            LOGGER.error(userID + "-" + depth + "-" + sinceTimestamp
+                    + "-" + untilTimestamp + "-" + importanceFactor);
         }
 
         double maxScore = 0.0;
-        double score = 0.0;
+        double score;
 
         for (UserItemRelationship it : userItemRelationships) {
-            String itemID = it.itemid;
+            String itemID = it.getItemid();
             result.putIfAbsent(itemID, 0.0);
             score = result.get(itemID) + 1 + it.getImportanceFactor(importanceFactorInteger);
             score = Math.log(score);
@@ -82,9 +93,7 @@ public class ObelixRecommender implements Recommender {
         for (Map.Entry<String, Double> entry : result.entrySet()) {
             double normalizedScore = entry.getValue() / maxScore;
 
-            //System.out.println(entry.getKey() + " - " + entry.getValue());
-            // Threshold value for including the recommendation, at least 0.1 = 10%
-            if (normalizedScore > 0.15) {
+            if (normalizedScore > INCLUDE_RECOMMENDATION_TRESHOLD) {
                 normalizedResult.put(entry.getKey(), entry.getValue() / maxScore);
             }
         }

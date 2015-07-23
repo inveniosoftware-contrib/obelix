@@ -4,34 +4,41 @@ import events.NeoHelpers;
 import graph.TimeStampExpander;
 import graph.UserItemRelationship;
 import graph.exceptions.ObelixInsertException;
-import graph.interfaces.GraphDatabase;
 import graph.exceptions.ObelixNodeNotFoundException;
+import graph.interfaces.GraphDatabase;
 import org.neo4j.cypher.EntityNotFoundException;
-import org.neo4j.graphdb.*;
+import org.neo4j.graphdb.GraphDatabaseService;
+import org.neo4j.graphdb.Node;
+import org.neo4j.graphdb.NotFoundException;
+import org.neo4j.graphdb.Path;
+import org.neo4j.graphdb.Relationship;
+import org.neo4j.graphdb.RelationshipType;
+import org.neo4j.graphdb.Transaction;
+import org.neo4j.graphdb.TransactionFailureException;
 import org.neo4j.graphdb.factory.GraphDatabaseFactory;
 import org.neo4j.graphdb.traversal.Evaluators;
 import org.neo4j.graphdb.traversal.Uniqueness;
 import org.neo4j.kernel.DeadlockDetectedException;
+import org.neo4j.kernel.GraphDatabaseAPI;
+import org.neo4j.server.WrappingNeoServerBootstrapper;
+import org.neo4j.server.configuration.Configurator;
+import org.neo4j.server.configuration.ServerConfigurator;
 import org.neo4j.tooling.GlobalGraphOperations;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.neo4j.server.WrappingNeoServerBootstrapper;
-import org.neo4j.server.configuration.Configurator;
-import org.neo4j.server.configuration.ServerConfigurator;
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.kernel.GraphDatabaseAPI;
-
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 
 import static events.NeoHelpers.getUserNode;
-import static events.NeoHelpers.makeSureTheUserDoesNotExceedMaxRelationshipsLimit;
+import static events.NeoHelpers.makeSureUsersDontExceedItemLimit;
 
 public class NeoGraphDatabase implements GraphDatabase {
-    GraphDatabaseService neoDb;
-    private final static Logger LOGGER = LoggerFactory.getLogger(NeoGraphDatabase.class.getName());
+    public static final String NEO4J_WEB_SERVER_LISTEN_TO = "localhost";
+    private GraphDatabaseService neoDb;
+    private static final Logger LOGGER = LoggerFactory.getLogger(NeoGraphDatabase.class.getName());
 
     private static void registerShutdownHook(final GraphDatabaseService graphDb) {
         Runtime.getRuntime().addShutdownHook(new Thread() {
@@ -42,7 +49,10 @@ public class NeoGraphDatabase implements GraphDatabase {
         });
     }
 
-    public NeoGraphDatabase(String path, Boolean enableNeo4jWebServer){
+    public NeoGraphDatabase(final String path,
+                            final Boolean enableNeo4jWebServer,
+                            final int configNeo4jWebPort) {
+
         GraphDatabaseService db = new GraphDatabaseFactory()
                 .newEmbeddedDatabaseBuilder(path)
                 .newGraphDatabase();
@@ -57,50 +67,33 @@ public class NeoGraphDatabase implements GraphDatabase {
 
             ServerConfigurator config = new ServerConfigurator(api);
             config.configuration()
-                    .addProperty(Configurator.WEBSERVER_ADDRESS_PROPERTY_KEY, "127.0.0.1");
+                    .addProperty(
+                            Configurator.WEBSERVER_ADDRESS_PROPERTY_KEY,
+                            NEO4J_WEB_SERVER_LISTEN_TO);
+
             config.configuration()
-                    .addProperty(Configurator.WEBSERVER_PORT_PROPERTY_KEY, "7575");
+                    .addProperty(Configurator.WEBSERVER_PORT_PROPERTY_KEY,
+                            configNeo4jWebPort);
 
             neoServerBootstrapper = new WrappingNeoServerBootstrapper(api, config);
             neoServerBootstrapper.start();
         }
 
-        // Warm up neo4j cache
-        /*
-        try (Transaction tx = graphDb.beginTx()) {
-            for (Node n : GlobalGraphOperations.at(graphDb).getAllNodeIds()) {
-                n.getPropertyKeys();
-                for (Relationship relationship : n.getRelationships()) {
-                    Node start = relationship.getStartNode();
-                }
-            }
-            tx.success();
-            System.out.println("Neo4j is warmed up!");
-        }*/
     }
 
-    public NeoGraphDatabase(GraphDatabaseService db){
+    public NeoGraphDatabase(final GraphDatabaseService db) {
         this.neoDb = db;
     }
-    @Override
-    public void createUserNode() {
-    }
 
     @Override
-    public void createItemNode() {
-    }
-
-    @Override
-    public void createRelationship() {
-    }
-
-    @Override
-    public List<String> getAllUserIds(){
+    public final List<String> getAllUserIds() {
         return getAllNodeIds("User");
     }
 
     @Override
-    public String cleanAllRelationships(String max) throws ObelixNodeNotFoundException {
+    public final String cleanAllRelationships(final String max)
+            throws ObelixNodeNotFoundException {
+
         for (String userid : getAllNodeIds("User")) {
             LOGGER.info("Cleaning" + userid + " " + cleanRelationships(userid, max));
         }
@@ -108,60 +101,60 @@ public class NeoGraphDatabase implements GraphDatabase {
     }
 
     @Override
-    public List<String> getAllNodeIds(String nodeName)
-    {
+    public final List<String> getAllNodeIds(final String nodeName) {
         List<String> nodes;
         try (Transaction tx = this.neoDb.beginTx()) {
-            nodes = events.NeoHelpers.getAllNodes(this.neoDb, nodeName);
+            nodes = NeoHelpers.getAllNodes(this.neoDb, nodeName);
             tx.success();
         }
 
         return nodes;
     }
 
-    public void makeSureTheUserDoesNotExceedMaxRelationshipsLimitObelix(String node, int maxRelationships) throws ObelixNodeNotFoundException {
+    public final void makeSureUserItemLimitNotExceeded(final String node,
+                                                       final int maxRelationships)
+            throws ObelixNodeNotFoundException {
+
         try (Transaction tx = this.neoDb.beginTx()) {
-            makeSureTheUserDoesNotExceedMaxRelationshipsLimit(
-                  this.neoDb, getUserNode(this.neoDb, node), maxRelationships);
+            makeSureUsersDontExceedItemLimit(
+                    this.neoDb, getUserNode(this.neoDb, node), maxRelationships);
             tx.success();
         }
     }
 
-    public String cleanRelationships(String userid, String max) throws ObelixNodeNotFoundException {
+    public final String cleanRelationships(final String userId,
+                                           final String maxRelationships)
+            throws ObelixNodeNotFoundException {
         int relationshipCountBefore = 0;
         int relationshipCountAfter = 0;
         Node user;
 
         try (Transaction tx = neoDb.beginTx()) {
-            user = getUserNode(neoDb, userid);
-            for (Relationship rel : user.getRelationships()) {
-                relationshipCountBefore += 1;
-            }
+            user = getUserNode(neoDb, userId);
+            relationshipCountBefore += ((Collection<?>) user.getRelationships()).size();
             tx.success();
         }
 
-        makeSureTheUserDoesNotExceedMaxRelationshipsLimit(neoDb, user, Integer.parseInt(max));
+        makeSureUsersDontExceedItemLimit(neoDb, user, Integer.parseInt(maxRelationships));
 
         try (Transaction tx = neoDb.beginTx()) {
-            user = getUserNode(neoDb, userid);
-            for (Relationship rel : user.getRelationships()) {
-                relationshipCountAfter += 1;
-            }
+            user = getUserNode(neoDb, userId);
+            relationshipCountAfter += ((Collection<?>) user.getRelationships()).size();
             tx.success();
         }
         return "Before: " + relationshipCountBefore + " - After: " + relationshipCountAfter;
     }
 
-    public List<String> getAllRelationships_() {
-        return getAllRelationships_(null);
+    public final List<String> getRelationships() {
+        return getRelationships(null);
     }
 
-    public List<String> getAllRelationships_(String type) {
+    public final List<String> getRelationships(final String type) {
 
         try (Transaction tx = neoDb.beginTx()) {
             Iterable<Relationship> rel = GlobalGraphOperations.at(neoDb).getAllRelationships();
 
-            List<String> relations_ids = new ArrayList<>();
+            List<String> relationshipsIds = new ArrayList<>();
 
             Long oldestTimestamp = null;
             Long newestTimestamp = null;
@@ -171,7 +164,8 @@ public class NeoGraphDatabase implements GraphDatabase {
                     if (type != null && !relationship.getType().name().equals(type)) {
                         continue;
                     }
-                    long relTimestamp = Long.parseLong(relationship.getProperty("timestamp").toString());
+                    long relTimestamp = Long.parseLong(relationship
+                            .getProperty("timestamp").toString());
 
                     if (oldestTimestamp == null) {
                         oldestTimestamp = relTimestamp;
@@ -179,18 +173,17 @@ public class NeoGraphDatabase implements GraphDatabase {
                     if (newestTimestamp == null) {
                         newestTimestamp = relTimestamp;
                     }
-                    if (relTimestamp < oldestTimestamp)
-                    {
+                    if (relTimestamp < oldestTimestamp) {
                         oldestTimestamp = relTimestamp;
                     }
                     if (relTimestamp > newestTimestamp) {
                         newestTimestamp = relTimestamp;
                     }
                     String key = relationship.getProperty("timestamp")
-                                 + ":" + relationship.getStartNode().getProperty("node_id").toString()
-                                 + "-" + relationship.getEndNode().getProperty("node_id").toString();
+                            + ":" + relationship.getStartNode().getProperty("node_id").toString()
+                            + "-" + relationship.getEndNode().getProperty("node_id").toString();
 
-                    relations_ids.add(key);
+                    relationshipsIds.add(key);
                 } catch (NotFoundException e) {
                     LOGGER.error("Ignores one relationship, probably deleted..");
                 }
@@ -198,13 +191,15 @@ public class NeoGraphDatabase implements GraphDatabase {
             //LOGGER.info("Newest timestamp: " + newestTimestamp);
             //LOGGER.info("Oldest timestamp: " + oldestTimestamp);
             tx.success();
-            return relations_ids;
+            return relationshipsIds;
         }
     }
 
-    public List<UserItemRelationship> getRelationships(String userID, String depth,
-                                                    String sinceTimestamp, String untilTimestamp,
-                                                    boolean removeDuplicates)
+    public final List<UserItemRelationship> getRelationships(final String userID,
+                                                             final String depth,
+                                                             final String sinceTimestamp,
+                                                             final String untilTimestamp,
+                                                             final boolean removeDuplicates)
 
             throws ObelixNodeNotFoundException {
         try (Transaction tx = neoDb.beginTx()) {
@@ -219,14 +214,11 @@ public class NeoGraphDatabase implements GraphDatabase {
                     .traverse(user)) {
 
                 if (path.lastRelationship() != null) {
-                    String userid = path.lastRelationship().getStartNode().getProperty("node_id").toString();
-                    String itemid = path.lastRelationship().getEndNode().getProperty("node_id").toString();
-                    String timestamp = path.lastRelationship().getProperty("timestamp").toString();
-                    String relname = userid + itemid + String.valueOf(timestamp);
 
-                    userItemRelationships.add(
-                            new UserItemRelationship(userid, itemid,
-                                    relname, timestamp, path.length()));
+                    String itemid = path.lastRelationship()
+                            .getEndNode().getProperty("node_id").toString();
+
+                    userItemRelationships.add(new UserItemRelationship(itemid, path.length()));
                 }
             }
             tx.success();
@@ -234,16 +226,13 @@ public class NeoGraphDatabase implements GraphDatabase {
         }
     }
 
-    /**
-     * New Relationship between nodeFrom to nodeTo with timestamp
-     * @param nodeFrom
-     * @param nodeTo
-     * @param timestamp
-     * @param relType
-     * @param maxRelationships
-     */
-    public void createNodeNodeRelationship(String nodeFrom, String nodeTo, RelationshipType relType, String timestamp,
-                                           int maxRelationships) throws ObelixInsertException{
+    public final void createNodeNodeRelationship(final String nodeFrom,
+                                                 final String nodeTo,
+                                                 final RelationshipType relType,
+                                                 final String timestamp,
+                                                 final int maxRelationships)
+            throws ObelixInsertException {
+
         try (Transaction tx = neoDb.beginTx()) {
             Node user = NeoHelpers.getOrCreateUserNode(neoDb, nodeFrom);
             Node item = NeoHelpers.getOrCreateItemNode(neoDb, nodeTo);
@@ -254,20 +243,23 @@ public class NeoGraphDatabase implements GraphDatabase {
             Relationship r = user.createRelationshipTo(item, relType);
             r.setProperty("timestamp", timestamp);
 
-            makeSureTheUserDoesNotExceedMaxRelationshipsLimit(neoDb, user, maxRelationships);
+            makeSureUsersDontExceedItemLimit(neoDb, user, maxRelationships);
             tx.success();
         } catch (TransactionFailureException e) {
             //Fixme: restart?
             LOGGER.error("TransactionFailureException, need to restart");
             throw new ObelixInsertException();
         } catch (NotFoundException e) {
-            LOGGER.error("Not found exception, pushing the element back on the queue. " + e.getMessage() + ": ");
+            LOGGER.error("Not found exception, pushing the element back on the queue. "
+                    + e.getMessage() + ": ");
             throw new ObelixInsertException();
         } catch (DeadlockDetectedException e) {
-            LOGGER.error("Deadlock found exception, pushing the element back on the queue" + e.getMessage() + ": ");
+            LOGGER.error("Deadlock found exception, pushing the element back on the queue"
+                    + e.getMessage() + ": ");
             throw new ObelixInsertException();
         } catch (EntityNotFoundException e) {
-            LOGGER.error("EntityNotFoundException, pushing the element back on the queue" + e.getMessage() + ": ");
+            LOGGER.error("EntityNotFoundException, pushing the element back on the queue"
+                    + e.getMessage() + ": ");
             throw new ObelixInsertException();
         }
     }

@@ -7,8 +7,6 @@ import obelix.impl.ObelixRecommender;
 import obelix.interfaces.Recommender;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.neo4j.graphdb.DynamicLabel;
-import org.neo4j.graphdb.Label;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Jedis;
@@ -23,20 +21,22 @@ import static spark.SparkBase.port;
 
 public class ObelixWebServer implements Runnable {
 
-    private final static Logger LOGGER = LoggerFactory.getLogger(ObelixWebServer.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(ObelixWebServer.class.getName());
 
-    public static final Label LABEL_ITEM = DynamicLabel.label("Item");
-    public static final Label LABEL_USER = DynamicLabel.label("User");
+    public static final int STATUS_CODE_NOT_FOUND = 400;
+    public static final int REDIS_PORT_NUMBER = 6379;
 
-    GraphDatabase graphDb;
-    ItemGraph itemsGraph;
-    Recommender obelixRecommender;
-    Map<String, String> clientSettings;
-    int webPort;
-    String recommendationDepth;
+    private final GraphDatabase graphDb;
+    private final ItemGraph itemsGraph;
+    private final Recommender obelixRecommender;
+    private final Map<String, String> clientSettings;
+    private final int webPort;
+    private final String recommendationDepth;
 
-    public ObelixWebServer(GraphDatabase graphdb, int webPort, String recommendationDepth,
-                           Map<String, String> clientSettings)  {
+    public ObelixWebServer(final GraphDatabase graphdb,
+                           final int webPort,
+                           final String recommendationDepth,
+                           final Map<String, String> clientSettings) {
 
         this.graphDb = graphdb;
         this.itemsGraph = new ItemGraph(graphdb);
@@ -46,93 +46,112 @@ public class ObelixWebServer implements Runnable {
         this.clientSettings = clientSettings;
     }
 
-    public void run() {
+    /**
+     * Start Obelix Web Server.
+     */
+    public final void run() {
 
         try {
 
-        port(this.webPort);
-        ObelixWebAuth.enableCORS("*", "*", "*");
-        ObelixWebAuth.requireValidToken();
+            port(this.webPort);
+            ObelixWebAuth.enableCORS("*", "*", "*");
+            ObelixWebAuth.requireValidToken();
 
-        // All users, items, relationships
+            // All users, items, relationships
 
-        get("/*/*/*/users/all", "application/json", (request, response) ->
-                this.graphDb.getAllUserIds(), new JsonTransformer());
+            get("/*/*/*/users/all", "application/json", (request, response) ->
+                    this.graphDb.getAllUserIds(), new JsonTransformer());
 
-        get("/*/*/*/items/all", "application/json", (request, response) ->
-                this.itemsGraph.getAll(), new JsonTransformer());
+            get("/*/*/*/items/all", "application/json", (request, response) ->
+                    this.itemsGraph.getAll(), new JsonTransformer());
 
-        get("/*/*/*/relationships/all", "application/json", (request, response) ->
-                this.graphDb.getAllRelationships_(), new JsonTransformer());
+            get("/*/*/*/relationships/all", "application/json", (request, response) ->
+                    this.graphDb.getRelationships(), new JsonTransformer());
 
-        // clean the relationships for users
-        get("/*/*/*/users/:userID/relationships/clean/:max", "application/json", (request, response) ->
-                this.graphDb.cleanRelationships(request.params("userID"),
-                        request.params("max")));
+            // clean the relationships for users
+            get("/*/*/*/users/:userID/relationships/clean/:max", "application/json",
+                    (request, response) ->
+                            this.graphDb.cleanRelationships(request.params("userID"),
+                                    request.params("max")));
 
-        get("/*/*/*/users/clean-all-relationships/:max", "application/json", (request, response) ->
-                this.graphDb.cleanAllRelationships(request.params("max")), new JsonTransformer());
+            get("/*/*/*/users/clean-all-relationships/:max", "application/json",
+                    (request, response) ->
+                            this.graphDb.cleanAllRelationships(request.params("max")),
+                    new JsonTransformer());
 
-        // Recommendations
-        get("/*/*/*/users/:userID/relationships/:depth", "application/json", (request, response) ->
-                this.graphDb.getRelationships(request.params("userID"), request.params("depth"), null, null, false), new JsonTransformer());
+            // Recommendations
+            get("/*/*/*/users/:userID/relationships/:depth", "application/json",
+                    (request, response) -> this.graphDb.getRelationships(request.params("userID"),
+                            request.params("depth"), null, null, false), new JsonTransformer());
 
-        get("/*/*/*/users/:userID/all-relationships", "application/json", (request, response) ->
-                this.graphDb.getRelationships(request.params("userID"), "4", null, null, false), new JsonTransformer());
+            get("/*/*/*/users/:userID/all-relationships", "application/json",
+                    (request, response) -> this.graphDb.getRelationships(request.params("userID"),
+                            "4", null, null, false), new JsonTransformer());
 
-        get("/*/*/*/users/:userID/relationships/:depth/:since/:until", "application/json", (request, response) ->
-                this.graphDb.getRelationships(
-                        request.params("userID"), request.params("depth"),
-                        request.params("since"), request.params("until"), false), new JsonTransformer());
+            get("/*/*/*/users/:userID/relationships/:depth/:since/:until", "application/json",
+                    (request, response) ->
+                            this.graphDb.getRelationships(
+                                    request.params("userID"), request.params("depth"),
+                                    request.params("since"), request.params("until"), false),
+                    new JsonTransformer());
 
-        get("/*/*/*/users/:userID/recommend/:depth", "application/json", (request, response) ->
-                this.obelixRecommender.recommend(request.params("userID"), request.params("depth")), new JsonTransformer());
+            get("/*/*/*/users/:userID/recommend/:depth", "application/json",
+                    (request, response) ->
+                            this.obelixRecommender.recommend(request.params("userID"),
+                                    request.params("depth")), new JsonTransformer());
 
-        get("/*/*/*/users/:userID/recommend", "application/json", (request, response) ->
-                this.obelixRecommender.recommend(request.params("userID"), recommendationDepth), new JsonTransformer());
+            get("/*/*/*/users/:userID/recommend", "application/json",
+                    (request, response) ->
+                            this.obelixRecommender.recommend(request.params("userID"),
+                                    recommendationDepth), new JsonTransformer());
 
-        get("/*/*/*/users/:userID/recommend/:depth/:since/:until/:importanceFactor", "application/json", (request, response) ->
-                this.obelixRecommender.recommend(
-                        request.params("userID"), request.params("depth"),
-                        request.params("since"), request.params("until"),
-                        request.params("importanceFactor")), new JsonTransformer());
+            get("/*/*/*/users/:userID/recommend/:depth/:since/:until/:importanceFactor",
+                    "application/json", (request, response) ->
+                            this.obelixRecommender.recommend(
+                                    request.params("userID"), request.params("depth"),
+                                    request.params("since"), request.params("until"),
+                                    request.params("importanceFactor")), new JsonTransformer());
 
-        // Settings for search
+            // Settings for search
 
-        get("/*/*/*/settings", "application/json", (request, response) ->
-                settings()
-                , new JsonTransformer());
+            get("/*/*/*/settings", "application/json", (request, response) ->
+                    settings()
+                    , new JsonTransformer());
 
 
-        exception(ObelixNodeNotFoundException.class, (e, request, response) -> {
-            LOGGER.error(e.getMessage());
-            response.status(404);
-            response.body("User or item not found");
-        });
+            exception(ObelixNodeNotFoundException.class, (e, request, response) -> {
+                LOGGER.error(e.getMessage());
+                response.status(STATUS_CODE_NOT_FOUND);
+                response.body("User or item not found");
+            });
 
-        // Search result logger
+            // Search result logger
 
-        post("/*/*/*/log/search", (request, response) -> {
-            try {
-                new Jedis("localhost", 6379).lpush("obelix-server::log::search::result", new JSONObject(request.body()).toString());
-                return "OK";
-            } catch (JSONException e) {
-                response.status(400);
-                response.body("Bad request, we need json data");
-                return response;
-            }
-        });
+            post("/*/*/*/log/search", (request, response) -> {
+                try {
+                    new Jedis("localhost", REDIS_PORT_NUMBER).lpush(
+                            "obelix-server::log::search::result",
+                            new JSONObject(request.body()).toString());
+                    return "OK";
+                } catch (JSONException e) {
+                    response.status(STATUS_CODE_NOT_FOUND);
+                    response.body("Bad request, we need json data");
+                    return response;
+                }
+            });
 
-        post("/*/*/*/log/pageview", (request, response) -> {
-            try {
-                new Jedis("localhost", 6379).lpush("obelix-server::log::page::view", new JSONObject(request.body()).toString());
-                return "OK";
-            } catch (JSONException e) {
-                response.status(400);
-                response.body("Bad request, we need json data");
-                return response;
-            }
-        });
+            post("/*/*/*/log/pageview", (request, response) -> {
+                try {
+                    new Jedis("localhost", REDIS_PORT_NUMBER).lpush(
+                            "obelix-server::log::page::view",
+                            new JSONObject(request.body()).toString());
+                    return "OK";
+                } catch (JSONException e) {
+                    response.status(STATUS_CODE_NOT_FOUND);
+                    response.body("Bad request, we need json data");
+                    return response;
+                }
+            });
 
 
         } catch (Exception e) {
@@ -140,6 +159,9 @@ public class ObelixWebServer implements Runnable {
         }
     }
 
+    /**
+     * @return clientSettings
+     */
     private Map<String, String> settings() {
         return this.clientSettings;
     }

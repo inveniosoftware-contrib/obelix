@@ -15,24 +15,23 @@ public class RedisObelixStore implements ObelixStore {
         this.redisPool = new RedisPool();
     }
 
-    public RedisObelixStore(String prefix) {
-        this.prefix = prefix;
+    public RedisObelixStore(final String prefixInput) {
+        this.prefix = prefixInput;
         this.redisPool = new RedisPool();
     }
 
     @Override
-    public void set(String key, ObelixStoreElement value)
-    {
+    public final void set(final String key, final ObelixStoreElement value) {
         try (Jedis jedis = this.redisPool.getRedis().getResource()) {
-            jedis.set(this.prefix + key, value.data.toString());
+            jedis.set(this.prefix + key, value.getData().toString());
         }
     }
 
     @Override
-    public ObelixStoreElement get(String key) {
+    public final ObelixStoreElement get(final String key) {
         try (Jedis jedis = this.redisPool.getRedis().getResource()) {
             return new ObelixStoreElement(jedis.get(this.prefix + key));
-        } catch(NullPointerException e){
+        } catch (NullPointerException e) {
             return null;
         }
     }

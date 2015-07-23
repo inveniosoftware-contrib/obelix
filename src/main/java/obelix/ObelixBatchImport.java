@@ -22,11 +22,18 @@ import java.util.HashMap;
 import java.util.Map;
 
 
-public class ObelixBatchImport {
+public final class ObelixBatchImport {
 
-    private final static Logger LOGGER = LoggerFactory.getLogger(ObelixBatchImport.class.getName());
+    public static final int IMPORTS_BETWEEN_EACH_LOG_MESSAGE = 1000;
+    public static final int NEO_CACHE_CAPACITY = 10000000;
 
-    private static void registerShutdownHook(final BatchInserter graphDb, final BatchInserterIndexProvider indexProvider) {
+    private ObelixBatchImport() {
+    }
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ObelixBatchImport.class.getName());
+
+    private static void registerShutdownHook(final BatchInserter graphDb,
+                                             final BatchInserterIndexProvider indexProvider) {
         Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override
             public void run() {
@@ -36,9 +43,11 @@ public class ObelixBatchImport {
         });
     }
 
-    private static long getOrCreateUserNodeID(String userid, Map<String, Long> usersNodesMap,
-                                              BatchInserterIndex usersIndex, BatchInserter inserter,
-                                              Label label) {
+    private static long getOrCreateUserNodeID(final String userid,
+                                              final Map<String, Long> usersNodesMap,
+                                              final BatchInserterIndex usersIndex,
+                                              final BatchInserter inserter,
+                                              final Label label) {
 
         long userNodeID;
 
@@ -54,9 +63,11 @@ public class ObelixBatchImport {
 
     }
 
-    private static long getOrCreateItemNodeID(String itemid, Map<String, Long> itemsNodesMap,
-                                              BatchInserterIndex itemsIndex, BatchInserter inserter,
-                                              Label label) {
+    private static long getOrCreateItemNodeID(final String itemid,
+                                              final Map<String, Long> itemsNodesMap,
+                                              final BatchInserterIndex itemsIndex,
+                                              final BatchInserter inserter,
+                                              final Label label) {
 
         long itemNodeID;
 
@@ -72,17 +83,16 @@ public class ObelixBatchImport {
 
     }
 
-    private static long getOrCreateRelatinshipID(String userid, String itemid, String timestamp,
-                                                 long userNodeid, long itemNodeid,
-                                                 Map<String, Long> relationshipsMap,
-                                                 BatchInserterIndex relationshipIndex,
-                                                 BatchInserter inserter,
-                                                 RelationshipType relType) {
-
-        String uniqueRelationID = userid + itemid + timestamp;
+    private static long getOrCreateRelatinshipID(final String timestamp,
+                                                 final long userNodeid,
+                                                 final long itemNodeid,
+                                                 final Map<String, Long> relationshipsMap,
+                                                 final BatchInserterIndex relationshipIndex,
+                                                 final BatchInserter inserter,
+                                                 final RelationshipType relType) {
 
         long relationID;
-
+        String uniqueRelationID = userNodeid + itemNodeid + timestamp;
         if (relationshipsMap.containsKey(uniqueRelationID)) {
             relationID = relationshipsMap.get(uniqueRelationID);
         } else {
@@ -98,20 +108,16 @@ public class ObelixBatchImport {
 
     }
 
-    private static NeoEvent getEvent(String result) {
+    private static NeoEvent getEvent(final String result) {
         return EventFactory.build(result);
     }
 
-    public static void run(String neo4storage, String redisQueueName) {
-
-        long userNodeID;
-        long itemNode;
+    public static void run(final String neo4storage, final String redisQueueName) {
 
         ObelixQueue redisQueueManager = new RedisObelixQueue(redisQueueName);
 
         Label userLabel = DynamicLabel.label("User");
         Label itemLabel = DynamicLabel.label("Item");
-        RelationshipType viewed = NeoHelpers.RelTypes.VIEWED;
 
         Map<String, Long> usersNodesMap = new HashMap<>();
         Map<String, Long> itemsNodesMap = new HashMap<>();
@@ -124,21 +130,25 @@ public class ObelixBatchImport {
         config.put("neostore.propertystore.db.strings.mapped_memory", "800M");
         config.put("neostore.propertystore.db.arrays.mapped_memory", "500M");
 
-        BatchInserter inserter = null;
+        BatchInserter inserter;
+
         inserter = BatchInserters.inserter(neo4storage, config);
 
         BatchInserterIndexProvider indexProvider = new LuceneBatchInserterIndexProvider(inserter);
 
         registerShutdownHook(inserter, indexProvider);
 
-        BatchInserterIndex usersIndex = indexProvider.nodeIndex("users", MapUtil.stringMap("type", "exact"));
-        usersIndex.setCacheCapacity("node_id", 10000000);
+        BatchInserterIndex usersIndex = indexProvider.nodeIndex("users",
+                MapUtil.stringMap("type", "exact"));
+        usersIndex.setCacheCapacity("node_id", NEO_CACHE_CAPACITY);
 
-        BatchInserterIndex itemsIndex = indexProvider.nodeIndex("items", MapUtil.stringMap("type", "exact"));
-        usersIndex.setCacheCapacity("node_id", 10000000);
+        BatchInserterIndex itemsIndex = indexProvider.nodeIndex("items",
+                MapUtil.stringMap("type", "exact"));
+        usersIndex.setCacheCapacity("node_id", NEO_CACHE_CAPACITY);
 
-        BatchInserterIndex relationshipIndex = indexProvider.relationshipIndex("relationships", MapUtil.stringMap("type", "exact"));
-        usersIndex.setCacheCapacity("timestamp", 10000000);
+        BatchInserterIndex relationshipIndex = indexProvider.relationshipIndex("relationships",
+                MapUtil.stringMap("type", "exact"));
+        usersIndex.setCacheCapacity("timestamp", NEO_CACHE_CAPACITY);
 
         boolean notFinised = true;
 
@@ -155,7 +165,7 @@ public class ObelixBatchImport {
 
                 NeoEvent event = getEvent(result.toString());
 
-                if(event == null) {
+                if (event == null) {
                     continue;
                 }
 
@@ -165,7 +175,8 @@ public class ObelixBatchImport {
                 long itemid = getOrCreateItemNodeID(event.getItem(), itemsNodesMap,
                         itemsIndex, inserter, itemLabel);
 
-                getOrCreateRelatinshipID(event.getUser(), event.getItem(), event.getTimestamp(),
+
+                getOrCreateRelatinshipID(event.getTimestamp(),
                         userid, itemid, relationshipsMap, relationshipIndex,
                         inserter, NeoHelpers.RelTypes.VIEWED);
 
@@ -173,13 +184,13 @@ public class ObelixBatchImport {
 
             c += 1;
 
-            if (c % 1000 == 0) {
+            if (c % IMPORTS_BETWEEN_EACH_LOG_MESSAGE == 0) {
                 LOGGER.info("Imported " + c);
             }
         }
     }
 
-    public static void main(String... args) {
+    public static void main(final String... args) {
         ObelixBatchImport.run("graph.db", "logentries");
     }
 

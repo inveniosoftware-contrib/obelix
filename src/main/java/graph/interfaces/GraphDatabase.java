@@ -1,7 +1,6 @@
 package graph.interfaces;
 
 import graph.exceptions.ObelixInsertException;
-import org.neo4j.graphdb.GraphDatabaseService;
 import graph.exceptions.ObelixNodeNotFoundException;
 import graph.UserItemRelationship;
 import org.neo4j.graphdb.RelationshipType;
@@ -10,29 +9,36 @@ import java.util.List;
 
 public interface GraphDatabase {
 
-    public void createUserNode();
+    List<String> getAllNodeIds(final String nodeName);
 
-    public void createItemNode();
-
-    public void createRelationship();
-
-    public List<String> getAllNodeIds(String nodeName);
-    public List<String> getAllUserIds();
+    List<String> getAllUserIds();
 
 
-    public String cleanRelationships(String userid, String max) throws ObelixNodeNotFoundException;
-    public String cleanAllRelationships(String max) throws ObelixNodeNotFoundException;
+    String cleanRelationships(final String userid, final String max)
+            throws ObelixNodeNotFoundException;
 
-    public List<UserItemRelationship> getRelationships(String userID, String depth,
-                                                       String sinceTimestamp, String untilTimestamp,
-                                                       boolean removeDuplicates) throws ObelixNodeNotFoundException;
+    String cleanAllRelationships(final String max) throws ObelixNodeNotFoundException;
 
-    public void makeSureTheUserDoesNotExceedMaxRelationshipsLimitObelix(String node, int maxRelationships) throws ObelixNodeNotFoundException;
+    List<UserItemRelationship> getRelationships(final String userID,
+                                                final String depth,
+                                                final String sinceTimestamp,
+                                                final String untilTimestamp,
+                                                final boolean removeDuplicates)
+            throws ObelixNodeNotFoundException;
 
-    public List<String> getAllRelationships_();
-    public List<String> getAllRelationships_(String type);
+    void makeSureUserItemLimitNotExceeded(final String node,
+                                          final int maxRelationships)
+            throws ObelixNodeNotFoundException;
 
-    public void createNodeNodeRelationship(String nodeFrom, String nodeTo, RelationshipType relType, String timestamp,
-                                           int maxRelationships) throws ObelixInsertException;
+    List<String> getRelationships();
+
+    List<String> getRelationships(final String type);
+
+    void createNodeNodeRelationship(final String nodeFrom,
+                                    final String nodeTo,
+                                    final RelationshipType relType,
+                                    final String timestamp,
+                                    final int maxRelationships)
+            throws ObelixInsertException;
 
 }

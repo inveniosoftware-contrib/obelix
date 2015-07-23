@@ -1,12 +1,17 @@
 package web;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import static spark.Spark.before;
 import static spark.Spark.halt;
 
-public class ObelixWebAuth {
+/**
+ * Web Auth for Obelix REST API.
+ */
+public final class ObelixWebAuth {
+
+    private ObelixWebAuth() {
+    }
+
+    public static final int STATUS_CODE_FORBIDDEN = 401;
 
     public static void enableCORS(final String origin, final String methods, final String headers) {
         before((request, response) -> {
@@ -16,25 +21,7 @@ public class ObelixWebAuth {
         });
     }
 
-    public static boolean tokenIsValid(String service, String user, String token) {
-        String key = service+"-"+user;
-        Map<String, String> validTokens = new HashMap<>();
-
-        return true;
-        //return validTokens.containsKey(key) && validTokens.get(key).equals(token);
-    }
-
     public static void requireValidToken() {
-        before((request, response) -> {
-            try {
-                String[] split = request.uri().split("/");
-                if (!tokenIsValid(split[1], split[2], split[3])) {
-                    halt(401, "403 forbidden");
-                }
-            }
-            catch (ArrayIndexOutOfBoundsException e) {
-                halt(401, "403 forbidden");
-            }
-        });
+        before((request, response) -> halt(STATUS_CODE_FORBIDDEN, "403 forbidden"));
     }
 }

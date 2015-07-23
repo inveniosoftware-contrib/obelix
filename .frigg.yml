@@ -3,6 +3,11 @@ services:
 
 setup_tasks:
  - mvn -B clean install
-  
+ - mvn -B dependency:resolve
+ - mvn -B versions:display-dependency-updates
+
 tasks:
+ - mvn -B checkstyle:check
+ - mvn -B pmd:check -Dpmd.printFailingErrors=true
+ - mvn -B findbugs:check
  - mvn -B test

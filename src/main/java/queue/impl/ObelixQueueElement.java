@@ -4,35 +4,45 @@ import org.json.JSONObject;
 
 public class ObelixQueueElement {
 
-    public final JSONObject data;
+    private final JSONObject data;
 
-    public ObelixQueueElement(JSONObject data) {
-        this.data = data;
+    public final JSONObject getData() {
+        return this.data;
     }
 
-    public ObelixQueueElement(String key, Object element) {
+    public ObelixQueueElement(final JSONObject dataInput) {
+        this.data = dataInput;
+    }
+
+    public ObelixQueueElement(final String key, final Object element) {
         JSONObject jsonObject = new JSONObject();
         jsonObject.put(key, element);
         this.data = jsonObject;
     }
 
-    public ObelixQueueElement(String rawData) {
+    public ObelixQueueElement(final String rawData) {
+
+        String currentRawData = rawData;
 
         // Let's try to convert the json formatted as string..
-        if(!rawData.startsWith("{")) {
-            rawData = rawData.substring(1, rawData.length()-1);
-            rawData = rawData.replace("\\", "");
+        if (!currentRawData.startsWith("{")) {
+            currentRawData = currentRawData.substring(1, rawData.length() - 1);
+            currentRawData = currentRawData.replace("\\", "");
         }
 
-        this.data = new JSONObject(rawData);
+        this.data = new JSONObject(currentRawData);
     }
 
-    public boolean equals(Object object) {
-        return object instanceof ObelixQueueElement && this.data.toString().equals(((ObelixQueueElement) object).data.toString());
+    public final boolean equals(final Object object) {
+        return object instanceof ObelixQueueElement && this.data.toString()
+                .equals(((ObelixQueueElement) object).data.toString());
     }
 
-    public String toString() {
+    public final String toString() {
         return this.data.toString();
     }
 
+    public final int hashCode() {
+        return data.hashCode();
+    }
 }
