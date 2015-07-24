@@ -1,4 +1,6 @@
 
+sudo: false
+
 services:
       - redis-server
 
@@ -6,3 +8,13 @@ language: java
 
 jdk:
     - oraclejdk8
+
+install:
+    - mvn -B -q versions:display-dependency-updates
+    - mvn -B -q clean install -DskipTests=true
+
+script:
+    - mvn -B -q checkstyle:check
+    - mvn -B -q pmd:check -Dpmd.printFailingErrors=true
+    - mvn -B -q findbugs:check
+    - mvn -B test
