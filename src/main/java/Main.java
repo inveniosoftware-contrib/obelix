@@ -4,6 +4,9 @@ import metrics.MetricsCollector;
 import obelix.ObelixBatchImport;
 import obelix.ObelixCache;
 import obelix.ObelixFeeder;
+import org.kohsuke.args4j.CmdLineException;
+import org.kohsuke.args4j.CmdLineParser;
+import org.kohsuke.args4j.Option;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import queue.impl.RedisObelixQueue;
@@ -23,133 +26,73 @@ public final class Main {
     public static final int NEO4J_WEB_PORT_DEFAULT = 7575;
     public static final int MAX_GRAPH_DEPTH_LIMIT = 10;
 
-    private Main() {
-    }
-
     private static final Logger LOGGER = LoggerFactory.getLogger(Main.class.getName());
+
+    @Option(name = "--neo4jStore", usage = "Neo4j Datastore path")
+    private String neoLocation = "graph.db";
+
+    @Option(name = "--max-relationships", usage = "Set a maximum number of relationships"
+            + "per node, this will remove the oldest when the limit is reached")
+    private int maxRelationships = MAX_RELATIONSHIPS_DEFAULT;
+
+    @Option(name = "--workers", usage = "Set the number of workers to read from the log queue")
+    private int workers = NUMBER_OF_WORKERS_DEFAULT;
+
+    @Option(name = "--enable-metrics", usage = "Enable metrics collection")
+    private boolean enableMetrics = false;
+
+    @Option(name = "--redis-queue-name",
+            usage = "Set the name of the redis queue to look for new log entries")
+    private String redisQueueName = "logentries";
+
+    @Option(name = "--redis-queue-prefix", usage = "Set the redis queue prefix")
+    private String redisQueuePrefix = "obelix:queue:";
+
+    @Option(name = "--web-port", usage = "Set the http port for the Obelix HTTP API")
+    private int webPort = OBELIX_WEB_PORT_DEFAULT;
+
+    @Option(name = "--batch-import-all", usage = "Only Batch Import")
+    private boolean batchImportAll = false;
+
+    @Option(name = "--neo4j-webserver", usage = "Enable the Debug Neo4j web server")
+    private boolean enableNeo4jWebServer = false;
+
+    @Option(name = "--neo4j-webserver-port", usage = "Neo4j web server Port")
+    private int configNeo4jWebPort = NEO4J_WEB_PORT_DEFAULT;
+
+    @Option(name = "---build-cache-for-all-users-on-startup",
+            usage = "Rebuild all recommendations")
+    private boolean buildForAllUsersOnStartup = false;
+
+    @Option(name = "--recommendation-depth", usage = "Set the recommendations depth, "
+            + "this means how deep the graph will be traversed")
+    private String recommendationDepth = "4";
+
 
     public static void main(final String... args) {
         LOGGER.warn("Restarting Obelix:main");
+        new Main().runObelix(args);
+    }
 
-        String neoLocation = "graph.db";
-        String redisQueuePrefix = "obelix:queue:";
-        String redisQueueName = "logentries";
-
-        boolean enableMetrics = false;
-        int maxRelationships = MAX_RELATIONSHIPS_DEFAULT;
-        int workers = NUMBER_OF_WORKERS_DEFAULT;
-        int webPort = OBELIX_WEB_PORT_DEFAULT;
-        int configNeo4jWebPort = NEO4J_WEB_PORT_DEFAULT;
-
-        int carg = 0;
-        for (String arg : args) {
-            if (arg.equals("--neo4jStore")) {
-                neoLocation = args[carg + 1];
-            }
-            carg += 1;
+    private boolean parseArguments(final String[] args) {
+        CmdLineParser parser = new CmdLineParser(this);
+        try {
+            parser.parseArgument(args);
+        } catch (CmdLineException e) {
+            // if there's a problem in the command line,
+            System.err.println(e.getMessage());
+            System.err.println("java Obelix [options...] arguments...");
+            // print the list of available options
+            parser.printUsage(System.err);
+            System.err.println();
+            return false;
         }
+        return true;
+    }
 
-        carg = 0;
-        for (String arg : args) {
-            if (arg.equals("--max-relationships")) {
-                maxRelationships = Integer.parseInt(args[carg + 1]);
-            }
-            carg += 1;
-        }
-
-        carg = 0;
-        for (String arg : args) {
-            if (arg.equals("--workers")) {
-                workers = Integer.parseInt(args[carg + 1]);
-            }
-            carg += 1;
-        }
-
-        carg = 0;
-        for (String arg : args) {
-            if (arg.equals("--enable-metrics")) {
-                enableMetrics = true;
-            }
-            carg += 1;
-        }
-
-        carg = 0;
-        for (String arg : args) {
-            if (arg.equals("--redis-queue-name")) {
-                redisQueueName = args[carg + 1];
-            }
-            carg += 1;
-        }
-
-        carg = 0;
-        for (String arg : args) {
-            if (arg.equals("--redis-queue-prefix")) {
-                redisQueuePrefix = args[carg + 1];
-            }
-            carg += 1;
-        }
-
-        carg = 0;
-        for (String arg : args) {
-            if (arg.equals("--web-port")) {
-                webPort = Integer.parseInt(args[carg + 1]);
-            }
-            carg += 1;
-        }
-
-        boolean batchImportAll = false;
-        carg = 0;
-        for (String arg : args) {
-            if (arg.equals("--batch-import-all")) {
-                batchImportAll = true;
-            }
-            carg += 1;
-        }
-
-        boolean enableNeo4jWebServer = false;
-        carg = 0;
-        for (String arg : args) {
-            if (arg.equals("--neo4j-webserver")) {
-                enableNeo4jWebServer = true;
-                try {
-                    configNeo4jWebPort = Integer.parseInt(args[carg + 1]);
-                } catch (NumberFormatException | NullPointerException
-                        | ArrayIndexOutOfBoundsException e) {
-                    LOGGER.info("Neo4jWebServer is started on " + configNeo4jWebPort);
-                }
-                break;
-            }
-            carg += 1;
-        }
-
-        boolean buildForAllUsersOnStartup = false;
-        carg = 0;
-        for (String arg : args) {
-            if (arg.equals("--build-cache-for-all-users-on-startup")) {
-                buildForAllUsersOnStartup = true;
-            }
-            carg += 1;
-        }
-
-        String recommendationDepth = "4";
-        carg = 0;
-        for (String arg : args) {
-            if (arg.equals("--recommendation-depth")) {
-                try {
-                    int depth = Integer.parseInt(args[carg + 1]);
-
-                    if (depth < 0 || depth > MAX_GRAPH_DEPTH_LIMIT) {
-                        throw new NumberFormatException();
-                    }
-
-                    recommendationDepth = args[carg + 1];
-
-                } catch (NumberFormatException e) {
-                    LOGGER.error("Wrong format for --recommendation-depth"
-                            + "option, use a number from 0-10");
-                }
-            }
-            carg += 1;
+    public void runObelix(final String[] args) {
+        if (!parseArguments(args)) {
+            return;
         }
 
         LOGGER.info("Starting Obelix");
@@ -164,7 +107,7 @@ public final class Main {
             LOGGER.info("Starting batch import of all");
             ObelixBatchImport.run(neoLocation, redisQueueName);
             LOGGER.info("Done importing everything! woho!");
-            System.exit(0);
+            return;
         }
 
         GraphDatabase graphDb = new NeoGraphDatabase(neoLocation,
@@ -191,8 +134,8 @@ public final class Main {
                 new RedisObelixStore(redisQueuePrefix),
                 buildForAllUsersOnStartup, recommendationDepth, maxRelationships
         ))).start();
-
     }
+
 
     public static Map<String, String> clientSettings() {
         Map<String, String> result = new HashMap<>();
