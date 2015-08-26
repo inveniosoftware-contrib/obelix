@@ -126,7 +126,8 @@ public class ObelixCache implements Runnable {
                     try {
 
                         int secondsDalay = SLEEP_MS_BETWEEN_EACH_CACHE_BUILD;
-                        LOGGER.info("CacheBuilder paused for " + secondsDalay + " ms");
+                        LOGGER.debug("CacheBuilder paused for "
+                                     + secondsDalay + " ms");
 
                         buildCacheFromCacheQueue();
                         Thread.sleep(SLEEP_MS_BETWEEN_EACH_CACHE_BUILD);
@@ -188,7 +189,7 @@ public class ObelixCache implements Runnable {
         }
 
         if (imported > 0) {
-            LOGGER.info("Built " + imported + " recommendation caches!");
+            LOGGER.debug("Built " + imported + " recommendation caches!");
         }
     }
 }

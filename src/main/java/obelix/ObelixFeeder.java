@@ -114,7 +114,10 @@ public class ObelixFeeder implements Runnable {
             }
             result = redisQueueManager.pop();
         }
-        LOGGER.info("WorkerID: " + workerID + " imported " + count + " entries from redis");
+        if (count > 0) {
+            LOGGER.info("WorkerID: " + workerID + " imported "
+                        + count + " entries from redis");
+        }
         return false;
     }
 }
