@@ -10,9 +10,11 @@ public class RedisPool {
 
     public static final int REDIS_PORT_NUMBER = 6379;
     public static final int REDIS_TIMEOUT = 500000;
+    private String redisHost = "localhost";
     private JedisPool pool;
 
-    public RedisPool() {
+    public RedisPool(final String redisHost) {
+        this.redisHost = redisHost;
         this.connect();
     }
 
@@ -21,7 +23,7 @@ public class RedisPool {
         config.setTestOnBorrow(true);
         config.setTestOnReturn(true);
         config.setTestWhileIdle(true);
-        this.pool = new JedisPool(config, "localhost", REDIS_PORT_NUMBER, REDIS_TIMEOUT);
+        this.pool = new JedisPool(config, redisHost, REDIS_PORT_NUMBER, REDIS_TIMEOUT);
     }
 
     private synchronized void ensureConnected() {

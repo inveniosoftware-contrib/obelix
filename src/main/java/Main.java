@@ -41,6 +41,10 @@ public final class Main {
     @Option(name = "--enable-metrics", usage = "Enable metrics collection")
     private boolean enableMetrics = false;
 
+    @Option(name = "--redis-host",
+            usage = "Set the redis host")
+    private String redisHost = "localhost";
+
     @Option(name = "--redis-queue-name",
             usage = "Set the name of the redis queue to look for new log entries")
     private String redisQueueName = "logentries";
@@ -100,12 +104,13 @@ public final class Main {
         LOGGER.info("--neo4jStore: " + neoLocation);
         LOGGER.info("--max-relationships: " + maxRelationships);
         LOGGER.info("--workers: " + workers);
+        LOGGER.info("--redis-host: " + redisHost);
         LOGGER.info("--redis-queue-name: " + redisQueueName);
         LOGGER.info("--web-port: " + webPort);
 
         if (batchImportAll) {
             LOGGER.info("Starting batch import of all");
-            ObelixBatchImport.run(neoLocation, redisQueueName);
+            ObelixBatchImport.run(neoLocation, redisQueueName, redisHost);
             LOGGER.info("Done importing everything! woho!");
             return;
         }
@@ -113,12 +118,14 @@ public final class Main {
         GraphDatabase graphDb = new NeoGraphDatabase(neoLocation,
                 enableNeo4jWebServer, configNeo4jWebPort);
 
-        ObelixQueue redisQueueManager = new RedisObelixQueue(redisQueuePrefix, redisQueueName);
-        ObelixQueue usersCacheQueue = new RedisObelixQueue(redisQueuePrefix, "cache:users");
-
+        ObelixQueue redisQueueManager = new RedisObelixQueue(redisQueuePrefix,
+                                                redisQueueName, redisHost);
+        ObelixQueue usersCacheQueue = new RedisObelixQueue(redisQueuePrefix,
+                                                "cache:users", redisHost);
 
         MetricsCollector metricsCollector = new MetricsCollector(
-                enableMetrics, graphDb, redisQueueManager, usersCacheQueue);
+                enableMetrics, graphDb, redisQueueManager,
+                usersCacheQueue, redisHost);
 
         if (enableMetrics) {
             new Thread(metricsCollector).start();

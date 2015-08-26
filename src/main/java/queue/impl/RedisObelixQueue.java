@@ -15,14 +15,14 @@ public class RedisObelixQueue implements ObelixQueue {
     private String queueName;
     private String prefix;
 
-    public RedisObelixQueue(final String queueName) {
-        this.redisPool = new RedisPool().getRedis();
+    public RedisObelixQueue(final String queueName, final String redisHost) {
+        this.redisPool = new RedisPool(redisHost).getRedis();
         this.queueName = queueName;
         this.prefix = "obelix:queue:";
     }
 
-    public RedisObelixQueue(final String prefix, final String queueName) {
-        this.redisPool = new RedisPool().getRedis();
+    public RedisObelixQueue(final String prefix, final String queueName, final String redisHost) {
+        this.redisPool = new RedisPool(redisHost).getRedis();
         this.queueName = queueName;
         this.prefix = prefix;
     }

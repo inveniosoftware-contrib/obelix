@@ -31,7 +31,7 @@ public class MetricsCollector implements Runnable {
     public MetricsCollector(final boolean enableMetrics,
                             final GraphDatabase graphDb,
                             final ObelixQueue redisQueueManager,
-                            final ObelixQueue usersCacheQueue) {
+                            final ObelixQueue usersCacheQueue, final String redisHost) {
 
         if (!enableMetrics) {
             this.storage = new InternalObelixStore();
@@ -40,7 +40,7 @@ public class MetricsCollector implements Runnable {
             this.usersCacheQueue = usersCacheQueue;
         } else {
 
-            this.storage = new RedisObelixStore();
+            this.storage = new RedisObelixStore(redisHost);
             this.graphDb = graphDb;
             this.redisQueueManager = redisQueueManager;
             this.usersCacheQueue = usersCacheQueue;
