@@ -10,14 +10,14 @@ public class RedisObelixStore implements ObelixStore {
     private RedisPool redisPool;
     private String prefix;
 
-    public RedisObelixStore() {
+    public RedisObelixStore(final String redisHost) {
         this.prefix = "obelix:store:";
-        this.redisPool = new RedisPool();
+        this.redisPool = new RedisPool(redisHost);
     }
 
-    public RedisObelixStore(final String prefixInput) {
+    public RedisObelixStore(final String prefixInput, final String redisHost) {
         this.prefix = prefixInput;
-        this.redisPool = new RedisPool();
+        this.redisPool = new RedisPool(redisHost);
     }
 
     @Override

@@ -112,9 +112,10 @@ public final class ObelixBatchImport {
         return EventFactory.build(result);
     }
 
-    public static void run(final String neo4storage, final String redisQueueName) {
+    public static void run(final String neo4storage,
+            final String redisQueueName, final String redisHost) {
 
-        ObelixQueue redisQueueManager = new RedisObelixQueue(redisQueueName);
+        ObelixQueue redisQueueManager = new RedisObelixQueue(redisQueueName, redisHost);
 
         Label userLabel = DynamicLabel.label("User");
         Label itemLabel = DynamicLabel.label("Item");
@@ -191,7 +192,7 @@ public final class ObelixBatchImport {
     }
 
     public static void main(final String... args) {
-        ObelixBatchImport.run("graph.db", "logentries");
+        ObelixBatchImport.run("graph.db", "logentries", "localhost");
     }
 
 }

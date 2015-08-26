@@ -10,7 +10,7 @@ public class TestObelixRedisQueue extends TestCase {
 
     public void testRedisQueuePushAndPop() {
 
-        ObelixQueue obelixQueue = new RedisObelixQueue("logentries" + random()*10000);
+        ObelixQueue obelixQueue = new RedisObelixQueue("logentries" + random()*10000, "localhost");
 
         obelixQueue.push(new ObelixQueueElement("a", "1"));
         obelixQueue.push(new ObelixQueueElement("b", "2"));
@@ -27,7 +27,7 @@ public class TestObelixRedisQueue extends TestCase {
     public void testRedisQueueBehaveAsTheInternalQueuePopAndPush() {
 
         ObelixQueue obelixQueue = new InternalObelixQueue();
-        ObelixQueue redisObelixQueue = new RedisObelixQueue("randomQueueName" + random() * 10000);
+        ObelixQueue redisObelixQueue = new RedisObelixQueue("randomQueueName" + random() * 10000, "localhost");
 
         for (int i = 0; i < 10; i++) {
             obelixQueue.push(new ObelixQueueElement(Integer.toString(i), "element" + Integer.toString(i)));
@@ -43,7 +43,7 @@ public class TestObelixRedisQueue extends TestCase {
     public void testRedisQueueBehaveAsTheInternalQueueGetAll() {
 
         ObelixQueue obelixQueue = new InternalObelixQueue();
-        ObelixQueue redisObelixQueue = new RedisObelixQueue("randomQueueName" + random() * 10000);
+        ObelixQueue redisObelixQueue = new RedisObelixQueue("randomQueueName" + random() * 10000, "localhost");
 
         for (int i = 0; i < 10; i++) {
             obelixQueue.push(new ObelixQueueElement(Integer.toString(i), "element" + Integer.toString(i)));
@@ -57,7 +57,7 @@ public class TestObelixRedisQueue extends TestCase {
     public void testReadJsonDataFormattedAsStringFromQueue() {
         String testData = "\"{\\\"file_format\\\": \\\"page_view\\\", \\\"timestamp\\\": 1431962580.7399549, \\\"item\\\": 2016165, \\\"user\\\": \\\"58335767\\\", \\\"ip\\\": \\\"188.218.111.19\\\", \\\"type\\\": \\\"events.pageviews\\\"}\"";
 
-        ObelixQueue obelixQueue = new RedisObelixQueue("logentries" + random()*10000);
+        ObelixQueue obelixQueue = new RedisObelixQueue("logentries" + random()*10000, "localhost");
         obelixQueue.push(new ObelixQueueElement(testData));
         obelixQueue.pop();
 
@@ -66,7 +66,7 @@ public class TestObelixRedisQueue extends TestCase {
     public void testReadValidJsonDataFromQueue() {
         String testData = "{\"file_format\": \"page_view\"}";
 
-        ObelixQueue obelixQueue = new RedisObelixQueue("logentries" + random()*10000);
+        ObelixQueue obelixQueue = new RedisObelixQueue("logentries" + random()*10000, "localhost");
         obelixQueue.push(new ObelixQueueElement(testData));
         obelixQueue.pop();
     }

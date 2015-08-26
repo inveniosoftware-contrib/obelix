@@ -10,7 +10,7 @@ public class TestObelixRedisStore extends TestCase {
 
         ObelixStoreElement firstElement = new ObelixStoreElement("key", "value");
 
-        ObelixStore obelixStore = new RedisObelixStore();
+        ObelixStore obelixStore = new RedisObelixStore("localhost");
         obelixStore.set("a", firstElement);
 
         assertEquals(obelixStore.get("a"), firstElement);
@@ -21,7 +21,7 @@ public class TestObelixRedisStore extends TestCase {
         ObelixStoreElement firstElement = new ObelixStoreElement("key", "value");
         ObelixStoreElement secondElement = new ObelixStoreElement("b", "2");
 
-        ObelixStore obelixStore = new RedisObelixStore();
+        ObelixStore obelixStore = new RedisObelixStore("localhost");
         obelixStore.set("a", firstElement);
         obelixStore.set("b", secondElement);
 
@@ -34,7 +34,7 @@ public class TestObelixRedisStore extends TestCase {
         ObelixStoreElement firstElement = new ObelixStoreElement("key", "value");
         ObelixStoreElement secondElement = new ObelixStoreElement("b", "2");
 
-        ObelixStore obelixStore = new RedisObelixStore();
+        ObelixStore obelixStore = new RedisObelixStore("localhost");
         obelixStore.set("a", firstElement);
         obelixStore.set("a", secondElement);
 
@@ -46,7 +46,7 @@ public class TestObelixRedisStore extends TestCase {
     public void testReadJsonDataFormattedAsStringFromStore() {
         String testData = "\"{\\\"file_format\\\": \\\"page_view\\\", \\\"timestamp\\\": 1431962580.7399549, \\\"item\\\": 2016165, \\\"user\\\": \\\"58335767\\\", \\\"ip\\\": \\\"188.218.111.19\\\", \\\"type\\\": \\\"events.pageviews\\\"}\"";
 
-        ObelixStore obelixStore = new RedisObelixStore();
+        ObelixStore obelixStore = new RedisObelixStore("localhost");
         obelixStore.set("key", new ObelixStoreElement(testData));
 
     }
@@ -54,7 +54,7 @@ public class TestObelixRedisStore extends TestCase {
     public void testReadValidJsonDataFromStore() {
         String testData = "{\"file_format\": \"page_view\"}";
 
-        ObelixStore obelixStore = new RedisObelixStore();
+        ObelixStore obelixStore = new RedisObelixStore("localhost");
         obelixStore.set("key", new ObelixStoreElement(testData));
 
     }

@@ -80,7 +80,7 @@ public class CacheBuilderTest extends TestCase {
         jsonObject.put("timestamp", "1421027564617");
 
         obelixQueue.push(new ObelixQueueElement(jsonObject));
-        obelixStore = new RedisObelixStore();
+        obelixStore = new RedisObelixStore("localhost");
 
         ObelixFeeder obelixFeeder = new ObelixFeeder(graphDb, 10, obelixQueue, obelixCacheQueue, 1);
         ObelixCache obelixCache = new ObelixCache(graphDb, obelixCacheQueue, obelixStore, false, "10", 10);
