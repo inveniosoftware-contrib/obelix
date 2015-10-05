@@ -9,7 +9,7 @@
     <version>1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
-    <name>obelix</name>
+    <name>Obelix</name>
     <url>http://obelix.io</url>
 
     <properties>
