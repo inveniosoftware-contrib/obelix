@@ -34,7 +34,23 @@
                         <target>1.8</target>
                     </configuration>
                 </plugin>
-
+                <plugin>
+                    <groupId>com.anthemengineering.mojo</groupId>
+                    <artifactId>infer-maven-plugin</artifactId>
+                    <version>0.1.0-SNAPSHOT</version>
+                    <configuration>
+                        <consoleOut>false</consoleOut>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <phase>verify</phase>
+                            <id>infer</id>
+                            <goals>
+                                <goal>infer</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-assembly-plugin</artifactId>
@@ -76,7 +92,39 @@
                         <configLocation>stylecheck.xml</configLocation>
                     </configuration>
                 </plugin>
-
+                <plugin>
+                    <groupId>com.mycila</groupId>
+                    <artifactId>license-maven-plugin</artifactId>
+                    <version>2.11</version>
+                    <configuration>
+                        <header>com/mycila/maven/plugin/license/templates/APACHE-2.txt</header>
+                        <properties>
+                            <owner>Mycila</owner>
+                            <email>mathieu.carbou@gmail.com</email>
+                        </properties>
+                        <excludes>
+                            <exclude>**/README</exclude>
+                            <exclude>**/graph.db/**</exclude>
+                            <exclude>**/docs/**</exclude>
+                            <exclude>.idea/**</exclude>
+                            <exclude>.dockerignore</exclude>
+                            <exclude>Dockerfile</exclude>
+                            <exclude>**.yml</exclude>
+                            <exclude>**.xml</exclude>
+                            <exclude>**.sh</exclude>
+                            <exclude>src/test/resources/**</exclude>
+                            <exclude>src/main/resources/**</exclude>
+                            <exclude>src/main/java/tmp</exclude>
+                        </excludes>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>check</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
             </plugins>
         </pluginManagement>
 
