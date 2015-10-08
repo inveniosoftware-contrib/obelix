@@ -6,7 +6,7 @@ setup_tasks:
  - mvn -B -q clean install -DskipTests=true
 
 tasks:
- - mvn license:check -Dlicense.header=LICENCE-header.txt
+ - mvn license:check -Dlicense.header=COPYING
  - mvn -B -q checkstyle:check
  - mvn -B -q pmd:check -Dpmd.printFailingErrors=true
  - mvn -B -q findbugs:check
